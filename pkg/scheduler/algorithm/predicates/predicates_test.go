@@ -3412,6 +3412,247 @@ func TestInterPodAffinityWithMultipleNodes(t *testing.T) {
 			},
 			name: "AntiAffinity test: incoming pod wouldn't considered as a fit as it violates each exsitingPod's terms on all nodes",
 		},
+		// TODO(Huang-Wei): additional testcase 1: not necessarily checked into k/k
+		{
+			pod: &v1.Pod{
+				Spec: v1.PodSpec{
+					Affinity: &v1.Affinity{
+						PodAntiAffinity: &v1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											{
+												Key:      "foo",
+												Operator: metav1.LabelSelectorOpExists,
+											},
+										},
+									},
+									TopologyKey: "zone",
+								},
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											{
+												Key:      "bar",
+												Operator: metav1.LabelSelectorOpExists,
+											},
+										},
+									},
+									TopologyKey: "zone",
+								},
+							},
+						},
+					},
+				},
+			},
+			pods: []*v1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "pod1", Labels: map[string]string{"foo": ""}},
+					Spec: v1.PodSpec{
+						NodeName: "nodeA",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "pod2", Labels: map[string]string{"bar": ""}},
+					Spec: v1.PodSpec{
+						NodeName: "nodeA",
+					},
+				},
+			},
+			nodes: []v1.Node{
+				{ObjectMeta: metav1.ObjectMeta{Name: "nodeA", Labels: map[string]string{"region": "r1", "zone": "z1", "hostname": "nodeA"}}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "nodeB", Labels: map[string]string{"region": "r1", "zone": "z2", "hostname": "nodeB"}}},
+			},
+			nodesExpectAffinityFailureReasons: [][]algorithm.PredicateFailureReason{
+				// {ErrPodAffinityNotMatch, ErrPodAntiAffinityRulesNotMatch},
+				// {ErrPodAffinityNotMatch, ErrPodAntiAffinityRulesNotMatch},
+			},
+			fits: map[string]bool{
+				"nodeA": true,
+				"nodeB": true,
+			},
+			name: "AntiAffinity test: incoming pod would fit on any node as NOT all its terms are matched with the same existing pod",
+		},
+		// TODO(Huang-Wei): additional testcase 2: not necessarily checked into k/k
+		{
+			pod: &v1.Pod{
+				Spec: v1.PodSpec{
+					Affinity: &v1.Affinity{
+						PodAntiAffinity: &v1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											{
+												Key:      "foo",
+												Operator: metav1.LabelSelectorOpExists,
+											},
+										},
+									},
+									TopologyKey: "region",
+								},
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											{
+												Key:      "bar",
+												Operator: metav1.LabelSelectorOpExists,
+											},
+										},
+									},
+									TopologyKey: "region",
+								},
+							},
+						},
+					},
+				},
+			},
+			pods: []*v1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "pod1", Labels: map[string]string{"foo": ""}},
+					Spec: v1.PodSpec{
+						NodeName: "nodeA",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "pod2", Labels: map[string]string{"bar": ""}},
+					Spec: v1.PodSpec{
+						NodeName: "nodeB",
+					},
+				},
+			},
+			nodes: []v1.Node{
+				{ObjectMeta: metav1.ObjectMeta{Name: "nodeA", Labels: map[string]string{"region": "r1", "zone": "z1", "hostname": "nodeA"}}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "nodeB", Labels: map[string]string{"region": "r1", "zone": "z2", "hostname": "nodeB"}}},
+			},
+			nodesExpectAffinityFailureReasons: [][]algorithm.PredicateFailureReason{
+				// {ErrPodAffinityNotMatch, ErrPodAntiAffinityRulesNotMatch},
+				// {ErrPodAffinityNotMatch, ErrPodAntiAffinityRulesNotMatch},
+			},
+			fits: map[string]bool{
+				"nodeA": true,
+				"nodeB": true,
+			},
+			name: "AntiAffinity test: incoming pod would fit on any node as NOT all its terms are matched with the same existing pod",
+		},
+		// TODO(Huang-Wei): additional testcase 3: not necessarily checked into k/k
+		{
+			pod: &v1.Pod{
+				Spec: v1.PodSpec{
+					Affinity: &v1.Affinity{
+						PodAntiAffinity: &v1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											{
+												Key:      "foo",
+												Operator: metav1.LabelSelectorOpExists,
+											},
+										},
+									},
+									TopologyKey: "zone",
+								},
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchExpressions: []metav1.LabelSelectorRequirement{
+											{
+												Key:      "bar",
+												Operator: metav1.LabelSelectorOpExists,
+											},
+										},
+									},
+									TopologyKey: "region",
+								},
+							},
+						},
+					},
+				},
+			},
+			pods: []*v1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "pod1", Labels: map[string]string{"foo": ""}},
+					Spec: v1.PodSpec{
+						NodeName: "nodeA",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "pod2", Labels: map[string]string{"bar": ""}},
+					Spec: v1.PodSpec{
+						NodeName: "nodeB",
+					},
+				},
+			},
+			nodes: []v1.Node{
+				{ObjectMeta: metav1.ObjectMeta{Name: "nodeA", Labels: map[string]string{"region": "r1", "zone": "z1", "hostname": "nodeA"}}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "nodeB", Labels: map[string]string{"region": "r1", "zone": "z2", "hostname": "nodeB"}}},
+			},
+			nodesExpectAffinityFailureReasons: [][]algorithm.PredicateFailureReason{
+				// {ErrPodAffinityNotMatch, ErrPodAntiAffinityRulesNotMatch},
+				// {ErrPodAffinityNotMatch, ErrPodAntiAffinityRulesNotMatch},
+			},
+			fits: map[string]bool{
+				"nodeA": true,
+				"nodeB": true,
+			},
+			name: "AntiAffinity test: incoming pod would fit on nodeB as NOT all its terms are matched to any single existing pod",
+		},
+		// TODO(Huang-Wei): remove this comment when pushing to k/k
+		// Wei's 2nd concerned case - a MUST FIX case
+		{
+			pod: &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "", "bar": ""}},
+			},
+			pods: []*v1.Pod{
+				{
+					Spec: v1.PodSpec{
+						NodeName: "nodeA",
+						Affinity: &v1.Affinity{
+							PodAntiAffinity: &v1.PodAntiAffinity{
+								RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+									{
+										LabelSelector: &metav1.LabelSelector{
+											MatchExpressions: []metav1.LabelSelectorRequirement{
+												{
+													Key:      "foo",
+													Operator: metav1.LabelSelectorOpExists,
+												},
+											},
+										},
+										TopologyKey: "region",
+									},
+									{
+										LabelSelector: &metav1.LabelSelector{
+											MatchExpressions: []metav1.LabelSelectorRequirement{
+												{
+													Key:      "bar",
+													Operator: metav1.LabelSelectorOpExists,
+												},
+											},
+										},
+										TopologyKey: "zone",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			nodes: []v1.Node{
+				{ObjectMeta: metav1.ObjectMeta{Name: "nodeA", Labels: map[string]string{"region": "r1", "zone": "z1", "hostname": "nodeA"}}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "nodeB", Labels: map[string]string{"region": "r1", "zone": "z2", "hostname": "nodeB"}}},
+			},
+			nodesExpectAffinityFailureReasons: [][]algorithm.PredicateFailureReason{
+				{ErrPodAffinityNotMatch, ErrExistingPodsAntiAffinityRulesNotMatch},
+				// {ErrPodAffinityNotMatch, ErrExistingPodsAntiAffinityRulesNotMatch},
+			},
+			fits: map[string]bool{
+				"nodeA": false,
+				"nodeB": true,
+			},
+			name: "AntiAffinity test: ensure both terms and topologyKey all matches incoming pod",
+		},
 	}
 
 	selectorExpectedFailureReasons := []algorithm.PredicateFailureReason{ErrNodeSelectorNotMatch}
