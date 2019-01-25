@@ -179,9 +179,9 @@ func TestPriorityQueue_AddIfNotPresent(t *testing.T) {
 func TestPriorityQueue_AddUnschedulableIfNotPresent(t *testing.T) {
 	q := NewPriorityQueue(nil)
 	q.Add(&highPriNominatedPod)
-	q.AddUnschedulableIfNotPresent(&highPriNominatedPod) // Must not add anything.
-	q.AddUnschedulableIfNotPresent(&medPriorityPod)      // This should go to activeQ.
-	q.AddUnschedulableIfNotPresent(&unschedulablePod)
+	q.AddUnschedulableIfNotPresent(&highPriNominatedPod, q.SchedulingCycle()) // Must not add anything.
+	q.AddUnschedulableIfNotPresent(&medPriorityPod, q.SchedulingCycle())      // This should go to activeQ.
+	q.AddUnschedulableIfNotPresent(&unschedulablePod, q.SchedulingCycle())
 	expectedNominatedPods := &nominatedPodMap{
 		nominatedPodToNode: map[types.UID]string{
 			medPriorityPod.UID:      "node1",
@@ -206,6 +206,64 @@ func TestPriorityQueue_AddUnschedulableIfNotPresent(t *testing.T) {
 	}
 	if getUnschedulablePod(q, &unschedulablePod) != &unschedulablePod {
 		t.Errorf("Pod %v was not found in the unschedulableQ.", unschedulablePod.Name)
+	}
+}
+
+func TestPriorityQueue_AddUnschedulableIfNotPresent_Async(t *testing.T) {
+	q := NewPriorityQueue(nil)
+	expectedPod1 := v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod1",
+			Namespace: "ns1",
+			UID:       "upns1",
+		},
+		Spec: v1.PodSpec{},
+	}
+	expectedPod2 := v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod2",
+			Namespace: "ns2",
+			UID:       "upns2",
+		},
+		Spec: v1.PodSpec{},
+	}
+	q.Add(&expectedPod1)
+	q.Add(&expectedPod2)
+	syncBefore := make(chan struct{})
+	syncAfter := make(chan struct{})
+	pod1, _ := q.Pop()
+	if !reflect.DeepEqual(&expectedPod1, pod1) {
+		t.Errorf("Unexpected pod. Expected: %v, got: %v", &expectedPod1, pod1)
+	}
+	// move all pods to active queue when pod1 is in scheduling
+	q.MoveAllToActiveQueue()
+	// find pod1 is unschedulable, fire a go routine to add it back later
+	unschedulablePod1 := pod1.DeepCopy()
+	unschedulablePod1.Status = v1.PodStatus{
+		Conditions: []v1.PodCondition{
+			{
+				Type:   v1.PodScheduled,
+				Status: v1.ConditionFalse,
+				Reason: v1.PodReasonUnschedulable,
+			},
+		},
+	}
+	cycle := q.SchedulingCycle()
+	go func() {
+		<-syncBefore
+		q.AddUnschedulableIfNotPresent(unschedulablePod1, cycle)
+		close(syncAfter)
+	}()
+	pod2, _ := q.Pop()
+	if !reflect.DeepEqual(&expectedPod2, pod2) {
+		t.Errorf("Unexpected pod. Expected: %v, got: %v", &expectedPod2, pod2)
+	}
+	// close `syncBefore` here to make sure `q.AddUnschedulableIfNotPresent` is called after another pod is popped
+	close(syncBefore)
+	<-syncAfter
+	// pod 1 should be in active queue again
+	if _, exists, _ := q.activeQ.Get(&expectedPod1); !exists {
+		t.Errorf("Expected %v to be added to activeQ.", expectedPod1.Name)
 	}
 }
 
@@ -680,7 +738,7 @@ func TestRecentlyTriedPodsGoBack(t *testing.T) {
 		LastProbeTime: metav1.Now(),
 	})
 	// Put in the unschedulable queue.
-	q.AddUnschedulableIfNotPresent(p1)
+	q.AddUnschedulableIfNotPresent(p1, q.SchedulingCycle())
 	// Move all unschedulable pods to the active queue.
 	q.MoveAllToActiveQueue()
 	// Simulation is over. Now let's pop all pods. The pod popped first should be
@@ -728,7 +786,7 @@ func TestPodFailedSchedulingMultipleTimesDoesNotBlockNewerPod(t *testing.T) {
 		LastProbeTime: metav1.Now(),
 	})
 	// Put in the unschedulable queue
-	q.AddUnschedulableIfNotPresent(&unschedulablePod)
+	q.AddUnschedulableIfNotPresent(&unschedulablePod, q.SchedulingCycle())
 	// Clear its backoff to simulate backoff its expiration
 	q.clearPodBackoff(&unschedulablePod)
 	// Move all unschedulable pods to the active queue.
@@ -771,7 +829,7 @@ func TestPodFailedSchedulingMultipleTimesDoesNotBlockNewerPod(t *testing.T) {
 		LastProbeTime: metav1.Now(),
 	})
 	// And then, put unschedulable pod to the unschedulable queue
-	q.AddUnschedulableIfNotPresent(&unschedulablePod)
+	q.AddUnschedulableIfNotPresent(&unschedulablePod, q.SchedulingCycle())
 	// Clear its backoff to simulate its backoff expiration
 	q.clearPodBackoff(&unschedulablePod)
 	// Move all unschedulable pods to the active queue.
@@ -838,7 +896,7 @@ func TestHighProirotyBackoff(t *testing.T) {
 		Message: "fake scheduling failure",
 	})
 	// Put in the unschedulable queue.
-	q.AddUnschedulableIfNotPresent(p)
+	q.AddUnschedulableIfNotPresent(p, q.SchedulingCycle())
 	// Move all unschedulable pods to the active queue.
 	q.MoveAllToActiveQueue()
 
