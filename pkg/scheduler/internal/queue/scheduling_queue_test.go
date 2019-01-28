@@ -211,59 +211,70 @@ func TestPriorityQueue_AddUnschedulableIfNotPresent(t *testing.T) {
 
 func TestPriorityQueue_AddUnschedulableIfNotPresent_Async(t *testing.T) {
 	q := NewPriorityQueue(nil)
-	expectedPod1 := v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pod1",
-			Namespace: "ns1",
-			UID:       "upns1",
-		},
-		Spec: v1.PodSpec{},
-	}
-	expectedPod2 := v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pod2",
-			Namespace: "ns2",
-			UID:       "upns2",
-		},
-		Spec: v1.PodSpec{},
-	}
-	q.Add(&expectedPod1)
-	q.Add(&expectedPod2)
-	syncBefore := make(chan struct{})
-	syncAfter := make(chan struct{})
-	pod1, _ := q.Pop()
-	if !reflect.DeepEqual(&expectedPod1, pod1) {
-		t.Errorf("Unexpected pod. Expected: %v, got: %v", &expectedPod1, pod1)
-	}
-	// move all pods to active queue when pod1 is in scheduling
-	q.MoveAllToActiveQueue()
-	// find pod1 is unschedulable, fire a go routine to add it back later
-	unschedulablePod1 := pod1.DeepCopy()
-	unschedulablePod1.Status = v1.PodStatus{
-		Conditions: []v1.PodCondition{
-			{
-				Type:   v1.PodScheduled,
-				Status: v1.ConditionFalse,
-				Reason: v1.PodReasonUnschedulable,
+	totalNum := 10
+	expectedPods := make([]v1.Pod, 0, totalNum)
+	for i := 0; i < totalNum; i++ {
+		priority := int32(i)
+		p := v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("pod%d", i),
+				Namespace: fmt.Sprintf("ns%d", i),
+				UID:       types.UID(fmt.Sprintf("upns%d", i)),
 			},
-		},
+			Spec: v1.PodSpec{
+				Priority: &priority,
+			},
+		}
+		expectedPods = append(expectedPods, p)
+		// priority is to make pods ordered in the PriorityQueue
+		q.Add(&p)
 	}
-	cycle := q.SchedulingCycle()
-	go func() {
-		<-syncBefore
-		q.AddUnschedulableIfNotPresent(unschedulablePod1, cycle)
-		close(syncAfter)
-	}()
-	pod2, _ := q.Pop()
-	if !reflect.DeepEqual(&expectedPod2, pod2) {
-		t.Errorf("Unexpected pod. Expected: %v, got: %v", &expectedPod2, pod2)
+
+	// Pop all pods except for the first one
+	for i := totalNum - 1; i > 0; i-- {
+		p, _ := q.Pop()
+		if !reflect.DeepEqual(&expectedPods[i], p) {
+			t.Errorf("Unexpected pod. Expected: %v, got: %v", &expectedPods[i], p)
+		}
 	}
-	// close `syncBefore` here to make sure `q.AddUnschedulableIfNotPresent` is called after another pod is popped
-	close(syncBefore)
-	<-syncAfter
-	// pod 1 should be in active queue again
-	if _, exists, _ := q.activeQ.Get(&expectedPod1); !exists {
-		t.Errorf("Expected %v to be added to activeQ.", expectedPod1.Name)
+
+	// move all pods to active queue when is in scheduling
+	q.MoveAllToActiveQueue()
+	moveReqChan := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(totalNum - 1)
+	// mark pods[1] ~ pods[totalNum-1] as unschedulable, fire goroutines to add them back later
+	for i := 1; i < totalNum; i++ {
+		unschedulablePod := expectedPods[i].DeepCopy()
+		unschedulablePod.Status = v1.PodStatus{
+			Conditions: []v1.PodCondition{
+				{
+					Type:   v1.PodScheduled,
+					Status: v1.ConditionFalse,
+					Reason: v1.PodReasonUnschedulable,
+				},
+			},
+		}
+		cycle := q.SchedulingCycle()
+		go func() {
+			<-moveReqChan
+			q.AddUnschedulableIfNotPresent(unschedulablePod, cycle)
+			wg.Done()
+		}()
+	}
+
+	firstPod, _ := q.Pop()
+	if !reflect.DeepEqual(&expectedPods[0], firstPod) {
+		t.Errorf("Unexpected pod. Expected: %v, got: %v", &expectedPods[0], firstPod)
+	}
+	// close `moveReqChan` here to make sure `q.AddUnschedulableIfNotPresent` is called after another pod is popped
+	close(moveReqChan)
+	wg.Wait()
+	// all other pods should be in active queue again
+	for i := 1; i < totalNum; i++ {
+		if _, exists, _ := q.activeQ.Get(&expectedPods[i]); !exists {
+			t.Errorf("Expected %v to be added to activeQ.", expectedPods[i].Name)
+		}
 	}
 }
 
