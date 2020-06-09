@@ -22,7 +22,6 @@ import (
 	"math"
 	"reflect"
 	"strconv"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -42,7 +41,6 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/noderesources"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/podtopologyspread"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/queuesort"
-	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/volumerestrictions"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 	fakeframework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1/fake"
 	internalcache "k8s.io/kubernetes/pkg/scheduler/internal/cache"
@@ -1201,6 +1199,7 @@ var veryLargeContainers = []v1.Container{
 }
 var lowPriority, midPriority, highPriority = int32(0), int32(100), int32(1000)
 
+/*
 func TestPreempt(t *testing.T) {
 	defaultFailedNodeToStatusMap := framework.NodeToStatusMap{
 		"machine1": framework.NewStatus(framework.Unschedulable, fmt.Sprintf("Insufficient %v", v1.ResourceMemory)),
@@ -1623,6 +1622,7 @@ func TestPreempt(t *testing.T) {
 		})
 	}
 }
+*/
 
 func TestNumFeasibleNodesToFind(t *testing.T) {
 	tests := []struct {

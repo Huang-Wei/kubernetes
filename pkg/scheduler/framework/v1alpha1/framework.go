@@ -924,6 +924,11 @@ func (f *framework) HasFilterPlugins() bool {
 	return len(f.filterPlugins) > 0
 }
 
+// HasPostFilterPlugins returns true if at least one postFilter plugin is defined.
+func (f *framework) HasPostFilterPlugins() bool {
+	return len(f.postFilterPlugins) > 0
+}
+
 // HasScorePlugins returns true if at least one score plugin is defined.
 func (f *framework) HasScorePlugins() bool {
 	return len(f.scorePlugins) > 0
