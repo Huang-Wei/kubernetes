@@ -1403,7 +1403,7 @@ func TestUpdatePod(t *testing.T) {
 				},
 			}
 
-			if err := updatePod(cs, pod, test.newPodCondition, test.newNominatedNodeName); err != nil {
+			if err := updatePod(cs, pod, test.newPodCondition, &test.newNominatedNodeName); err != nil {
 				t.Fatalf("Error calling update: %v", err)
 			}
 
