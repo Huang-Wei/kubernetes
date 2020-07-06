@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"k8s.io/klog/v2"
+	"k8s.io/kubernetes/pkg/scheduler/framework/runtime"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -261,7 +262,7 @@ func (p *PriorityQueue) Add(pod *v1.Pod) error {
 	if err := p.podBackoffQ.Delete(pInfo); err == nil {
 		klog.Errorf("Error: pod %v is already in the podBackoff queue.", nsNameForPod(pod))
 	}
-	metrics.SchedulerQueueIncomingPods.WithLabelValues("active", PodAdd).Inc()
+	metrics.SchedulerQueueIncomingPods.WithLabelValues("active", runtime.PodAdd).Inc()
 	p.PodNominator.AddNominatedPod(pod, "")
 	p.cond.Broadcast()
 
@@ -317,10 +318,10 @@ func (p *PriorityQueue) AddUnschedulableIfNotPresent(pInfo *framework.QueuedPodI
 		if err := p.podBackoffQ.Add(pInfo); err != nil {
 			return fmt.Errorf("error adding pod %v to the backoff queue: %v", pod.Name, err)
 		}
-		metrics.SchedulerQueueIncomingPods.WithLabelValues("backoff", ScheduleAttemptFailure).Inc()
+		metrics.SchedulerQueueIncomingPods.WithLabelValues("backoff", runtime.ScheduleAttemptFailure).Inc()
 	} else {
 		p.unschedulableQ.addOrUpdate(pInfo)
-		metrics.SchedulerQueueIncomingPods.WithLabelValues("unschedulable", ScheduleAttemptFailure).Inc()
+		metrics.SchedulerQueueIncomingPods.WithLabelValues("unschedulable", runtime.ScheduleAttemptFailure).Inc()
 	}
 
 	p.PodNominator.AddNominatedPod(pod, "")
@@ -347,7 +348,7 @@ func (p *PriorityQueue) flushBackoffQCompleted() {
 			return
 		}
 		p.activeQ.Add(rawPodInfo)
-		metrics.SchedulerQueueIncomingPods.WithLabelValues("active", BackoffComplete).Inc()
+		metrics.SchedulerQueueIncomingPods.WithLabelValues("active", runtime.BackoffComplete).Inc()
 		defer p.cond.Broadcast()
 	}
 }
@@ -368,7 +369,7 @@ func (p *PriorityQueue) flushUnschedulableQLeftover() {
 	}
 
 	if len(podsToMove) > 0 {
-		p.movePodsToActiveOrBackoffQueue(podsToMove, UnschedulableTimeout)
+		p.movePodsToActiveOrBackoffQueue(podsToMove, runtime.UnschedulableTimeout)
 	}
 }
 
@@ -481,7 +482,7 @@ func (p *PriorityQueue) Delete(pod *v1.Pod) error {
 // may make pending pods with matching affinity terms schedulable.
 func (p *PriorityQueue) AssignedPodAdded(pod *v1.Pod) {
 	p.lock.Lock()
-	p.movePodsToActiveOrBackoffQueue(p.getUnschedulablePodsWithMatchingAffinityTerm(pod), AssignedPodAdd)
+	p.movePodsToActiveOrBackoffQueue(p.getUnschedulablePodsWithMatchingAffinityTerm(pod), runtime.AssignedPodAdd)
 	p.lock.Unlock()
 }
 
@@ -489,7 +490,7 @@ func (p *PriorityQueue) AssignedPodAdded(pod *v1.Pod) {
 // may make pending pods with matching affinity terms schedulable.
 func (p *PriorityQueue) AssignedPodUpdated(pod *v1.Pod) {
 	p.lock.Lock()
-	p.movePodsToActiveOrBackoffQueue(p.getUnschedulablePodsWithMatchingAffinityTerm(pod), AssignedPodUpdate)
+	p.movePodsToActiveOrBackoffQueue(p.getUnschedulablePodsWithMatchingAffinityTerm(pod), runtime.AssignedPodUpdate)
 	p.lock.Unlock()
 }
 

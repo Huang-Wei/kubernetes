@@ -14,7 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package queue
+package runtime
+
+import (
+	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
+)
 
 // Events that trigger scheduler queue to change.
 const (
@@ -42,19 +46,19 @@ const (
 	// PvAdd is the event when a persistent volume is added in the cluster.
 	PvAdd = "PvAdd"
 	// PvUpdate is the event when a persistent volume is updated in the cluster.
-	PvUpdate = "PvUpdate"
+	PvUpdate string = "PvUpdate"
 	// PvcAdd is the event when a persistent volume claim is added in the cluster.
-	PvcAdd = "PvcAdd"
+	PvcAdd string = "PvcAdd"
 	// PvcUpdate is the event when a persistent volume claim is updated in the cluster.
-	PvcUpdate = "PvcUpdate"
+	PvcUpdate string = "PvcUpdate"
 	// StorageClassAdd is the event when a StorageClass is added in the cluster.
 	StorageClassAdd = "StorageClassAdd"
 	// ServiceAdd is the event when a service is added in the cluster.
-	ServiceAdd = "ServiceAdd"
+	ServiceAdd framework.EventType = "ServiceAdd"
 	// ServiceUpdate is the event when a service is updated in the cluster.
-	ServiceUpdate = "ServiceUpdate"
+	ServiceUpdate framework.EventType = "ServiceUpdate"
 	// ServiceDelete is the event when a service is deleted in the cluster.
-	ServiceDelete = "ServiceDelete"
+	ServiceDelete framework.EventType = "ServiceDelete"
 	// CSINodeAdd is the event when a CSI node is added in the cluster.
 	CSINodeAdd = "CSINodeAdd"
 	// CSINodeUpdate is the event when a CSI node is updated in the cluster.
@@ -70,3 +74,9 @@ const (
 	// NodeConditionChange is the event when node condition is changed.
 	NodeConditionChange = "NodeConditionChange"
 )
+
+type EventsGate map[framework.EventType]bool
+
+func (e EventsGate) InterestedIn(t framework.EventType) bool {
+	return e[t]
+}

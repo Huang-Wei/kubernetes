@@ -26,6 +26,7 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/kubernetes/pkg/scheduler/apis/config"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/helper"
+	frameworkruntime "k8s.io/kubernetes/pkg/scheduler/framework/runtime"
 	framework "k8s.io/kubernetes/pkg/scheduler/framework/v1alpha1"
 )
 
@@ -68,8 +69,12 @@ func New(plArgs runtime.Object, handle framework.FrameworkHandle) (framework.Plu
 	if err != nil {
 		return nil, err
 	}
-	serviceLister := handle.SharedInformerFactory().Core().V1().Services().Lister()
 
+	if len(args.AffinityLabels) != 0 {
+		handle.ClaimInterest(frameworkruntime.ServiceAdd, frameworkruntime.ServiceDelete, frameworkruntime.ServiceUpdate)
+	}
+
+	serviceLister := handle.SharedInformerFactory().Core().V1().Services().Lister()
 	return &ServiceAffinity{
 		sharedLister:  handle.SnapshotSharedLister(),
 		serviceLister: serviceLister,

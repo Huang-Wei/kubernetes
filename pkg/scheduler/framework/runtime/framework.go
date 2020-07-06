@@ -88,6 +88,8 @@ type frameworkImpl struct {
 
 	preemptHandle framework.PreemptHandle
 
+	eventsGate EventsGate
+
 	// Indicates that RunFilterPlugins should accumulate all failed statuses and not return
 	// after the first failure.
 	runAllFilters bool
@@ -129,6 +131,7 @@ type frameworkOptions struct {
 	profileName          string
 	podNominator         framework.PodNominator
 	extenders            []framework.Extender
+	eventsGate           EventsGate
 	runAllFilters        bool
 }
 
@@ -199,6 +202,13 @@ func WithExtenders(extenders []framework.Extender) Option {
 	}
 }
 
+// WithEventGate TODO.
+func WithEventGate(gate EventsGate) Option {
+	return func(o *frameworkOptions) {
+		o.eventsGate = gate
+	}
+}
+
 var defaultFrameworkOptions = frameworkOptions{
 	metricsRecorder: newMetricsRecorder(1000, time.Second),
 }
@@ -219,6 +229,12 @@ func (ph *preemptHandle) Extenders() []framework.Extender {
 
 var _ framework.Framework = &frameworkImpl{}
 
+func (f *frameworkImpl) ClaimInterest(events ...framework.EventType) {
+	for _, e := range events {
+		f.eventsGate[e] = true
+	}
+}
+
 // NewFramework initializes plugins given the configuration and the registry.
 func NewFramework(r Registry, plugins *config.Plugins, args []config.PluginConfig, opts ...Option) (framework.Framework, error) {
 	options := defaultFrameworkOptions
@@ -236,6 +252,7 @@ func NewFramework(r Registry, plugins *config.Plugins, args []config.PluginConfi
 		informerFactory:       options.informerFactory,
 		metricsRecorder:       options.metricsRecorder,
 		profileName:           options.profileName,
+		eventsGate:            options.eventsGate,
 		runAllFilters:         options.runAllFilters,
 	}
 	f.preemptHandle = &preemptHandle{

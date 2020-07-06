@@ -21,6 +21,7 @@ import (
 	"reflect"
 
 	"k8s.io/klog/v2"
+	"k8s.io/kubernetes/pkg/scheduler/framework/runtime"
 
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -30,7 +31,6 @@ import (
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/pkg/features"
-	"k8s.io/kubernetes/pkg/scheduler/internal/queue"
 	"k8s.io/kubernetes/pkg/scheduler/profile"
 )
 
@@ -41,7 +41,7 @@ func (sched *Scheduler) onPvAdd(obj interface{}) {
 	// provisioning and binding process, will not trigger events to schedule pod
 	// again. So we need to move pods to active queue on PV add for this
 	// scenario.
-	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.PvAdd)
+	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(runtime.PvAdd)
 }
 
 func (sched *Scheduler) onPvUpdate(old, new interface{}) {
@@ -49,15 +49,15 @@ func (sched *Scheduler) onPvUpdate(old, new interface{}) {
 	// bindings due to conflicts if PVs are updated by PV controller or other
 	// parties, then scheduler will add pod back to unschedulable queue. We
 	// need to move pods to active queue on PV update for this scenario.
-	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.PvUpdate)
+	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(runtime.PvUpdate)
 }
 
 func (sched *Scheduler) onPvcAdd(obj interface{}) {
-	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.PvcAdd)
+	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(runtime.PvcAdd)
 }
 
 func (sched *Scheduler) onPvcUpdate(old, new interface{}) {
-	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.PvcUpdate)
+	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(runtime.PvcUpdate)
 }
 
 func (sched *Scheduler) onStorageClassAdd(obj interface{}) {
@@ -74,20 +74,26 @@ func (sched *Scheduler) onStorageClassAdd(obj interface{}) {
 	// We don't need to invalidate cached results because results will not be
 	// cached for pod that has unbound immediate PVCs.
 	if sc.VolumeBindingMode != nil && *sc.VolumeBindingMode == storagev1.VolumeBindingWaitForFirstConsumer {
-		sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.StorageClassAdd)
+		sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(runtime.StorageClassAdd)
 	}
 }
 
 func (sched *Scheduler) onServiceAdd(obj interface{}) {
-	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.ServiceAdd)
+	if sched.InterestedIn(runtime.ServiceAdd) {
+		sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(string(runtime.ServiceAdd))
+	}
 }
 
 func (sched *Scheduler) onServiceUpdate(oldObj interface{}, newObj interface{}) {
-	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.ServiceUpdate)
+	if sched.InterestedIn(runtime.ServiceUpdate) {
+		sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(string(runtime.ServiceUpdate))
+	}
 }
 
 func (sched *Scheduler) onServiceDelete(obj interface{}) {
-	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.ServiceDelete)
+	if sched.InterestedIn(runtime.ServiceDelete) {
+		sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(string(runtime.ServiceUpdate))
+	}
 }
 
 func (sched *Scheduler) addNodeToCache(obj interface{}) {
@@ -102,7 +108,7 @@ func (sched *Scheduler) addNodeToCache(obj interface{}) {
 	}
 
 	klog.V(3).Infof("add event for node %q", node.Name)
-	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.NodeAdd)
+	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(runtime.NodeAdd)
 }
 
 func (sched *Scheduler) updateNodeInCache(oldObj, newObj interface{}) {
@@ -127,7 +133,7 @@ func (sched *Scheduler) updateNodeInCache(oldObj, newObj interface{}) {
 	// that a pod being processed by the scheduler is determined unschedulable. We want this
 	// pod to be reevaluated when a change in the cluster happens.
 	if sched.SchedulingQueue.NumUnschedulablePods() == 0 {
-		sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.Unknown)
+		sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(runtime.Unknown)
 	} else if event := nodeSchedulingPropertiesChange(newNode, oldNode); event != "" {
 		sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(event)
 	}
@@ -161,11 +167,11 @@ func (sched *Scheduler) deleteNodeFromCache(obj interface{}) {
 }
 
 func (sched *Scheduler) onCSINodeAdd(obj interface{}) {
-	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.CSINodeAdd)
+	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(runtime.CSINodeAdd)
 }
 
 func (sched *Scheduler) onCSINodeUpdate(oldObj, newObj interface{}) {
-	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.CSINodeUpdate)
+	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(runtime.CSINodeUpdate)
 }
 
 func (sched *Scheduler) addPodToSchedulingQueue(obj interface{}) {
@@ -290,7 +296,7 @@ func (sched *Scheduler) deletePodFromCache(obj interface{}) {
 		klog.Errorf("scheduler cache RemovePod failed: %v", err)
 	}
 
-	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(queue.AssignedPodDelete)
+	sched.SchedulingQueue.MoveAllToActiveOrBackoffQueue(runtime.AssignedPodDelete)
 }
 
 // assignedPod selects pods that are assigned (scheduled and running).
@@ -470,19 +476,19 @@ func addAllEventHandlers(
 
 func nodeSchedulingPropertiesChange(newNode *v1.Node, oldNode *v1.Node) string {
 	if nodeSpecUnschedulableChanged(newNode, oldNode) {
-		return queue.NodeSpecUnschedulableChange
+		return runtime.NodeSpecUnschedulableChange
 	}
 	if nodeAllocatableChanged(newNode, oldNode) {
-		return queue.NodeAllocatableChange
+		return runtime.NodeAllocatableChange
 	}
 	if nodeLabelsChanged(newNode, oldNode) {
-		return queue.NodeLabelChange
+		return runtime.NodeLabelChange
 	}
 	if nodeTaintsChanged(newNode, oldNode) {
-		return queue.NodeTaintChange
+		return runtime.NodeTaintChange
 	}
 	if nodeConditionsChanged(newNode, oldNode) {
-		return queue.NodeConditionChange
+		return runtime.NodeConditionChange
 	}
 
 	return ""

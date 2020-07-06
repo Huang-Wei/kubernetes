@@ -521,6 +521,8 @@ type FrameworkHandle interface {
 
 	// TODO: unroll the wrapped interfaces to FrameworkHandle.
 	PreemptHandle() PreemptHandle
+
+	ClaimInterest(events ...EventType)
 }
 
 // PostFilterResult wraps needed info for scheduler framework to act upon PostFilter phase.
@@ -562,3 +564,5 @@ type PluginsRunner interface {
 	// RunPreFilterExtensionRemovePod calls the RemovePod interface for the set of configured PreFilter plugins.
 	RunPreFilterExtensionRemovePod(ctx context.Context, state *CycleState, podToSchedule *v1.Pod, podToRemove *v1.Pod, nodeInfo *NodeInfo) *Status
 }
+
+type EventType string

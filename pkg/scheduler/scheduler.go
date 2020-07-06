@@ -88,6 +88,8 @@ type Scheduler struct {
 	scheduledPodsHasSynced func() bool
 
 	client clientset.Interface
+
+	InterestedIn func(framework.EventType) bool
 }
 
 // Cache returns the cache in scheduler for test to check the data in scheduler.

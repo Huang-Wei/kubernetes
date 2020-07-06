@@ -156,10 +156,13 @@ func (c *Configurator) create() (*Scheduler, error) {
 		}
 	}
 
+	// TODO:
+	eventGate := make(frameworkruntime.EventsGate)
 	// The nominator will be passed all the way to framework instantiation.
 	nominator := internalqueue.NewPodNominator()
 	profiles, err := profile.NewMap(c.profiles, c.buildFramework, c.recorderFactory,
-		frameworkruntime.WithPodNominator(nominator))
+		frameworkruntime.WithPodNominator(nominator),
+		frameworkruntime.WithEventGate(eventGate))
 	if err != nil {
 		return nil, fmt.Errorf("initializing profiles: %v", err)
 	}
@@ -201,6 +204,7 @@ func (c *Configurator) create() (*Scheduler, error) {
 		Error:           MakeDefaultErrorFunc(c.client, c.informerFactory.Core().V1().Pods().Lister(), podQueue, c.schedulerCache),
 		StopEverything:  c.StopEverything,
 		SchedulingQueue: podQueue,
+		InterestedIn:    eventGate.InterestedIn,
 	}, nil
 }
 
