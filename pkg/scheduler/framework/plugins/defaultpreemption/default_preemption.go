@@ -93,7 +93,7 @@ func (pl *DefaultPreemption) PostFilter(ctx context.Context, state *framework.Cy
 
 	nnn, err := pl.preempt(ctx, state, pod, m)
 	if err != nil {
-		return nil, framework.AsStatus(err)
+		return nil, framework.AsStatus(Name, err)
 	}
 	if nnn == "" {
 		return nil, framework.NewStatus(framework.Unschedulable)

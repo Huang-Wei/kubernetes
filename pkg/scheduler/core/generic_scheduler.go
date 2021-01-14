@@ -71,8 +71,8 @@ const (
 func (f *FitError) Error() string {
 	reasons := make(map[string]int)
 	for _, status := range f.FilteredNodesStatuses {
-		for _, reason := range status.Reasons() {
-			reasons[reason]++
+		for _, reason := range status.Failures() {
+			reasons[reason.Reason]++
 		}
 	}
 
@@ -358,10 +358,11 @@ func (g *genericScheduler) findNodesThatPassExtenders(pod *v1.Pod, feasibleNodes
 		}
 
 		for failedNodeName, failedMsg := range failedMap {
+			failure := framework.NewFailure(fmt.Sprintf("__extender_%v", extender.Name()), failedMsg)
 			if _, found := statuses[failedNodeName]; !found {
-				statuses[failedNodeName] = framework.NewStatus(framework.Unschedulable, failedMsg)
+				statuses[failedNodeName] = framework.NewStatus(framework.Unschedulable, failure)
 			} else {
-				statuses[failedNodeName].AppendReason(failedMsg)
+				statuses[failedNodeName].AppendFailure(failure)
 			}
 		}
 		feasibleNodes = feasibleList

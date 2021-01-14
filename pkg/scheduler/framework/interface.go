@@ -21,6 +21,7 @@ package framework
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -92,14 +93,27 @@ const (
 	MaxTotalScore int64 = math.MaxInt64
 )
 
-// Status indicates the result of running a plugin. It consists of a code, a
-// message and (optionally) an error. When the status code is not `Success`,
-// the reasons should explain why.
+// Status indicates the result of running a plugin. It consists of a code,
+// (optionally) a number of failures and an error. When the status code
+// is not `Success`, failures[*].Reason should explain why.
 // NOTE: A nil Status is also considered as Success.
 type Status struct {
-	code    Code
-	reasons []string
-	err     error
+	code     Code
+	failures []Failure
+	err      error
+}
+
+// Failure is an entity specifying details of a scheduling failure.
+type Failure struct {
+	// Plugin name that reports this failure.
+	Plugin string
+	// The detailed failure reason.
+	Reason string
+}
+
+// NewFailure returns a Failure object by given plugin and reason.
+func NewFailure(plugin, reason string) Failure {
+	return Failure{Plugin: plugin, Reason: reason}
 }
 
 // Code returns code of the Status.
@@ -110,22 +124,26 @@ func (s *Status) Code() Code {
 	return s.code
 }
 
-// Message returns a concatenated message on reasons of the Status.
+// Message returns a concatenated message on failures of the Status.
 func (s *Status) Message() string {
 	if s == nil {
 		return ""
 	}
-	return strings.Join(s.reasons, ", ")
+	var msgs []string
+	for _, r := range s.failures {
+		msgs = append(msgs, fmt.Sprintf("[%v] %v", r.Plugin, r.Reason))
+	}
+	return strings.Join(msgs, ", ")
 }
 
-// Reasons returns reasons of the Status.
-func (s *Status) Reasons() []string {
-	return s.reasons
+// Failures returns failures of the Status.
+func (s *Status) Failures() []Failure {
+	return s.failures
 }
 
-// AppendReason appends given reason to the Status.
-func (s *Status) AppendReason(reason string) {
-	s.reasons = append(s.reasons, reason)
+// AppendFailure appends the given failure to the Status.
+func (s *Status) AppendFailure(f Failure) {
+	s.failures = append(s.failures, f)
 }
 
 // IsSuccess returns true if and only if "Status" is nil or Code is "Success".
@@ -139,8 +157,13 @@ func (s *Status) IsUnschedulable() bool {
 	return code == Unschedulable || code == UnschedulableAndUnresolvable
 }
 
+// SetError sets the given err to Status.
+func (s *Status) SetError(err error) {
+	s.err = err
+}
+
 // AsError returns nil if the status is a success; otherwise returns an "error" object
-// with a concatenated message on reasons of the Status.
+// with a concatenated message on failures of the Status.
 func (s *Status) AsError() error {
 	if s.IsSuccess() {
 		return nil
@@ -152,10 +175,10 @@ func (s *Status) AsError() error {
 }
 
 // NewStatus makes a Status out of the given arguments and returns its pointer.
-func NewStatus(code Code, reasons ...string) *Status {
+func NewStatus(code Code, failures ...Failure) *Status {
 	s := &Status{
-		code:    code,
-		reasons: reasons,
+		code:     code,
+		failures: failures,
 	}
 	if code == Error {
 		s.err = errors.New(s.Message())
@@ -164,11 +187,11 @@ func NewStatus(code Code, reasons ...string) *Status {
 }
 
 // AsStatus wraps an error in a Status.
-func AsStatus(err error) *Status {
+func AsStatus(pluginName string, err error) *Status {
 	return &Status{
-		code:    Error,
-		reasons: []string{err.Error()},
-		err:     err,
+		code:     Error,
+		failures: []Failure{{Plugin: pluginName, Reason: err.Error()}},
+		err:      err,
 	}
 }
 
@@ -194,8 +217,8 @@ func (p PluginToStatus) Merge() *Status {
 			hasUnschedulable = true
 		}
 		finalStatus.code = s.Code()
-		for _, r := range s.reasons {
-			finalStatus.AppendReason(r)
+		for _, r := range s.failures {
+			finalStatus.AppendFailure(r)
 		}
 	}
 

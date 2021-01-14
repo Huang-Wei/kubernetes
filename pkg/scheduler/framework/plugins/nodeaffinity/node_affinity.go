@@ -63,13 +63,13 @@ func (pl *NodeAffinity) Name() string {
 func (pl *NodeAffinity) Filter(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 	node := nodeInfo.Node()
 	if node == nil {
-		return framework.NewStatus(framework.Error, "node not found")
+		return framework.NewStatus(framework.Error, framework.NewFailure(Name, "node not found"))
 	}
 	if pl.addedNodeSelector != nil && !pl.addedNodeSelector.Match(node) {
-		return framework.NewStatus(framework.UnschedulableAndUnresolvable, errReasonEnforced)
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, errReasonEnforced))
 	}
 	if !pluginhelper.PodMatchesNodeSelectorAndAffinityTerms(pod, node) {
-		return framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonPod)
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonPod))
 	}
 	return nil
 }
@@ -92,7 +92,7 @@ func (pl *NodeAffinity) PreScore(ctx context.Context, cycleState *framework.Cycl
 	}
 	preferredNodeAffinity, err := getPodPreferredNodeAffinity(pod)
 	if err != nil {
-		return framework.AsStatus(err)
+		return framework.AsStatus(Name, err)
 	}
 	state := &preScoreState{
 		preferredNodeAffinity: preferredNodeAffinity,
@@ -107,12 +107,12 @@ func (pl *NodeAffinity) PreScore(ctx context.Context, cycleState *framework.Cycl
 func (pl *NodeAffinity) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
 	nodeInfo, err := pl.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
 	if err != nil {
-		return 0, framework.AsStatus(fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
+		return 0, framework.AsStatus(Name, fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
 	}
 
 	node := nodeInfo.Node()
 	if node == nil {
-		return 0, framework.AsStatus(fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
+		return 0, framework.AsStatus(Name, fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
 	}
 
 	var count int64
@@ -125,7 +125,7 @@ func (pl *NodeAffinity) Score(ctx context.Context, state *framework.CycleState, 
 		// fallback to calculate preferredNodeAffinity here when PreScore is disabled
 		preferredNodeAffinity, err := getPodPreferredNodeAffinity(pod)
 		if err != nil {
-			return 0, framework.AsStatus(err)
+			return 0, framework.AsStatus(Name, err)
 		}
 		s = &preScoreState{
 			preferredNodeAffinity: preferredNodeAffinity,

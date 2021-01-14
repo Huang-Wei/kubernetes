@@ -87,7 +87,7 @@ func (pl *NodeLabel) Name() string {
 func (pl *NodeLabel) Filter(ctx context.Context, _ *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 	node := nodeInfo.Node()
 	if node == nil {
-		return framework.NewStatus(framework.Error, "node not found")
+		return framework.AsStatus(Name, fmt.Errorf("node not found"))
 	}
 	nodeLabels := labels.Set(node.Labels)
 	check := func(labels []string, presence bool) bool {
@@ -103,14 +103,14 @@ func (pl *NodeLabel) Filter(ctx context.Context, _ *framework.CycleState, pod *v
 		return nil
 	}
 
-	return framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonPresenceViolated)
+	return framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonPresenceViolated))
 }
 
 // Score invoked at the score extension point.
 func (pl *NodeLabel) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
 	nodeInfo, err := pl.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
 	if err != nil {
-		return 0, framework.AsStatus(fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
+		return 0, framework.AsStatus(Name, fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
 	}
 
 	node := nodeInfo.Node()

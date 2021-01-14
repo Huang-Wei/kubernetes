@@ -86,7 +86,7 @@ var _ = framework.KubeDescribe("NodeProblemDetector [NodeFeature:NodeProblemDete
 			logVolume       = "log"
 			localtimeVolume = "localtime"
 
-			// Reasons and messages used in the test.
+			// Failures and messages used in the test.
 			defaultReason  = "Default"
 			defaultMessage = "default message"
 			tempReason     = "Temporary"

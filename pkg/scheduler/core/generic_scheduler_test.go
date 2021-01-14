@@ -67,7 +67,7 @@ func (pl *noPodsFilterPlugin) Filter(_ context.Context, _ *framework.CycleState,
 	if len(nodeInfo.Pods) == 0 {
 		return nil
 	}
-	return framework.NewStatus(framework.Unschedulable, st.ErrReasonFake)
+	return framework.NewStatus(framework.Unschedulable, framework.NewFailure(pl.Name(), st.ErrReasonFake))
 }
 
 // NewNoPodsFilterPlugin initializes a noPodsFilterPlugin and returns it.
@@ -90,7 +90,7 @@ func (pl *numericMapPlugin) Name() string {
 func (pl *numericMapPlugin) Score(_ context.Context, _ *framework.CycleState, _ *v1.Pod, nodeName string) (int64, *framework.Status) {
 	score, err := strconv.Atoi(nodeName)
 	if err != nil {
-		return 0, framework.NewStatus(framework.Error, fmt.Sprintf("Error converting nodename to int: %+v", nodeName))
+		return 0, framework.NewStatus(framework.Error, framework.NewFailure(pl.Name(), fmt.Sprintf("Error converting nodename to int: %+v", nodeName)))
 	}
 	return int64(score), nil
 }
@@ -114,7 +114,7 @@ func (pl *reverseNumericMapPlugin) Name() string {
 func (pl *reverseNumericMapPlugin) Score(_ context.Context, _ *framework.CycleState, _ *v1.Pod, nodeName string) (int64, *framework.Status) {
 	score, err := strconv.Atoi(nodeName)
 	if err != nil {
-		return 0, framework.NewStatus(framework.Error, fmt.Sprintf("Error converting nodename to int: %+v", nodeName))
+		return 0, framework.AsStatus(pl.Name(), fmt.Errorf("error converting nodename to int: %+v", nodeName))
 	}
 	return int64(score), nil
 }
@@ -163,7 +163,7 @@ func (pl *trueMapPlugin) ScoreExtensions() framework.ScoreExtensions {
 func (pl *trueMapPlugin) NormalizeScore(_ context.Context, _ *framework.CycleState, _ *v1.Pod, nodeScores framework.NodeScoreList) *framework.Status {
 	for _, host := range nodeScores {
 		if host.Name == "" {
-			return framework.NewStatus(framework.Error, "unexpected empty host name")
+			return framework.AsStatus(pl.Name(), errors.New("unexpected empty host name"))
 		}
 	}
 	return nil
@@ -182,7 +182,7 @@ func (pl *falseMapPlugin) Name() string {
 }
 
 func (pl *falseMapPlugin) Score(_ context.Context, _ *framework.CycleState, _ *v1.Pod, _ string) (int64, *framework.Status) {
-	return 0, framework.NewStatus(framework.Error, errPrioritize.Error())
+	return 0, framework.AsStatus(pl.Name(), errors.New(errPrioritize.Error()))
 }
 
 func (pl *falseMapPlugin) ScoreExtensions() framework.ScoreExtensions {
@@ -293,8 +293,8 @@ func TestGenericScheduler(t *testing.T) {
 				Pod:         &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "2", UID: types.UID("2")}},
 				NumAllNodes: 2,
 				FilteredNodesStatuses: framework.NodeToStatusMap{
-					"machine1": framework.NewStatus(framework.Unschedulable, st.ErrReasonFake),
-					"machine2": framework.NewStatus(framework.Unschedulable, st.ErrReasonFake),
+					"machine1": framework.NewStatus(framework.Unschedulable, framework.NewFailure("FalseFilter", st.ErrReasonFake)),
+					"machine2": framework.NewStatus(framework.Unschedulable, framework.NewFailure("FalseFilter", st.ErrReasonFake)),
 				},
 			},
 		},
@@ -378,9 +378,9 @@ func TestGenericScheduler(t *testing.T) {
 				Pod:         &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "2", UID: types.UID("2")}},
 				NumAllNodes: 3,
 				FilteredNodesStatuses: framework.NodeToStatusMap{
-					"3": framework.NewStatus(framework.Unschedulable, st.ErrReasonFake),
-					"2": framework.NewStatus(framework.Unschedulable, st.ErrReasonFake),
-					"1": framework.NewStatus(framework.Unschedulable, st.ErrReasonFake),
+					"3": framework.NewStatus(framework.Unschedulable, framework.NewFailure("FalseFilter", st.ErrReasonFake)),
+					"2": framework.NewStatus(framework.Unschedulable, framework.NewFailure("FalseFilter", st.ErrReasonFake)),
+					"1": framework.NewStatus(framework.Unschedulable, framework.NewFailure("FalseFilter", st.ErrReasonFake)),
 				},
 			},
 		},
@@ -410,8 +410,8 @@ func TestGenericScheduler(t *testing.T) {
 				Pod:         &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "2", UID: types.UID("2")}},
 				NumAllNodes: 2,
 				FilteredNodesStatuses: framework.NodeToStatusMap{
-					"1": framework.NewStatus(framework.Unschedulable, st.ErrReasonFake),
-					"2": framework.NewStatus(framework.Unschedulable, st.ErrReasonFake),
+					"1": framework.NewStatus(framework.Unschedulable, framework.NewFailure("NoPodsFilter", st.ErrReasonFake)),
+					"2": framework.NewStatus(framework.Unschedulable, framework.NewFailure("NoPodsFilter", st.ErrReasonFake)),
 				},
 			},
 		},
@@ -644,7 +644,7 @@ func TestGenericScheduler(t *testing.T) {
 				Pod:         &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "test-filter", UID: types.UID("test-filter")}},
 				NumAllNodes: 1,
 				FilteredNodesStatuses: framework.NodeToStatusMap{
-					"3": framework.NewStatus(framework.Unschedulable, "injecting failure for pod test-filter"),
+					"3": framework.NewStatus(framework.Unschedulable, framework.NewFailure("FakeFilter", "injecting failure for pod test-filter")),
 				},
 			},
 		},
@@ -666,7 +666,7 @@ func TestGenericScheduler(t *testing.T) {
 				Pod:         &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "test-filter", UID: types.UID("test-filter")}},
 				NumAllNodes: 1,
 				FilteredNodesStatuses: framework.NodeToStatusMap{
-					"3": framework.NewStatus(framework.UnschedulableAndUnresolvable, "injecting failure for pod test-filter"),
+					"3": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure("FakeFilter", "injecting failure for pod test-filter")),
 				},
 			},
 		},
@@ -692,7 +692,7 @@ func TestGenericScheduler(t *testing.T) {
 				st.RegisterQueueSortPlugin(queuesort.Name, queuesort.New),
 				st.RegisterPreFilterPlugin(
 					"FakePreFilter",
-					st.NewFakePreFilterPlugin(framework.NewStatus(framework.UnschedulableAndUnresolvable, "injected unschedulable status")),
+					st.NewFakePreFilterPlugin(framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure("FakePreFilter", "injected unschedulable status"))),
 				),
 				st.RegisterBindPlugin(defaultbinder.Name, defaultbinder.New),
 			},
@@ -703,8 +703,8 @@ func TestGenericScheduler(t *testing.T) {
 				Pod:         &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "test-prefilter", UID: types.UID("test-prefilter")}},
 				NumAllNodes: 2,
 				FilteredNodesStatuses: framework.NodeToStatusMap{
-					"1": framework.NewStatus(framework.UnschedulableAndUnresolvable, "injected unschedulable status"),
-					"2": framework.NewStatus(framework.UnschedulableAndUnresolvable, "injected unschedulable status"),
+					"1": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure("FakePreFilter", "injected unschedulable status")),
+					"2": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure("FakePreFilter", "injected unschedulable status")),
 				},
 			},
 		},
@@ -714,7 +714,7 @@ func TestGenericScheduler(t *testing.T) {
 				st.RegisterQueueSortPlugin(queuesort.Name, queuesort.New),
 				st.RegisterPreFilterPlugin(
 					"FakePreFilter",
-					st.NewFakePreFilterPlugin(framework.NewStatus(framework.Error, "injected error status")),
+					st.NewFakePreFilterPlugin(framework.AsStatus("FakePreFilter", errors.New("injected error status"))),
 				),
 				st.RegisterBindPlugin(defaultbinder.Name, defaultbinder.New),
 			},
@@ -830,9 +830,9 @@ func TestFindFitAllError(t *testing.T) {
 			if !found {
 				t.Errorf("failed to find node %v in %v", node.Name, nodeToStatusMap)
 			}
-			reasons := status.Reasons()
-			if len(reasons) != 1 || reasons[0] != st.ErrReasonFake {
-				t.Errorf("unexpected failure reasons: %v", reasons)
+			failures := status.Failures()
+			if len(failures) != 1 || failures[0].Reason != st.ErrReasonFake {
+				t.Errorf("unexpected failure reasons: %v", failures)
 			}
 		})
 	}
@@ -874,9 +874,9 @@ func TestFindFitSomeError(t *testing.T) {
 			if !found {
 				t.Errorf("failed to find node %v in %v", node.Name, nodeToStatusMap)
 			}
-			reasons := status.Reasons()
-			if len(reasons) != 1 || reasons[0] != st.ErrReasonFake {
-				t.Errorf("unexpected failures: %v", reasons)
+			failures := status.Failures()
+			if len(failures) != 1 || failures[0].Reason != st.ErrReasonFake {
+				t.Errorf("unexpected failures: %v", failures)
 			}
 		})
 	}

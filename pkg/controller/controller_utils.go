@@ -383,7 +383,7 @@ func NewUIDTrackingControllerExpectations(ce ControllerExpectationsInterface) *U
 	return &UIDTrackingControllerExpectations{ControllerExpectationsInterface: ce, uidStore: cache.NewStore(UIDSetKeyFunc)}
 }
 
-// Reasons for pod events
+// Failures for pod events
 const (
 	// FailedCreatePodReason is added in an event and in a replica set condition
 	// when a pod for a replica set is failed to be created.

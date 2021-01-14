@@ -143,7 +143,7 @@ func (w *waitingPod) Allow(pluginName string) {
 	// The select clause works as a non-blocking send.
 	// If there is no receiver, it's a no-op (default case).
 	select {
-	case w.s <- framework.NewStatus(framework.Success, ""):
+	case w.s <- framework.NewStatus(framework.Success):
 	default:
 	}
 }

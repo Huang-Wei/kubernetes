@@ -114,7 +114,7 @@ func (pl *PodTopologySpread) PreScore(
 ) *framework.Status {
 	allNodes, err := pl.sharedLister.NodeInfos().List()
 	if err != nil {
-		return framework.AsStatus(fmt.Errorf("getting all nodes: %w", err))
+		return framework.AsStatus(Name, fmt.Errorf("getting all nodes: %w", err))
 	}
 
 	if len(filteredNodes) == 0 || len(allNodes) == 0 {
@@ -128,7 +128,7 @@ func (pl *PodTopologySpread) PreScore(
 	}
 	err = pl.initPreScoreState(state, pod, filteredNodes)
 	if err != nil {
-		return framework.AsStatus(fmt.Errorf("calculating preScoreState: %w", err))
+		return framework.AsStatus(Name, fmt.Errorf("calculating preScoreState: %w", err))
 	}
 
 	// return if incoming pod doesn't have soft topology spread Constraints.
@@ -175,13 +175,13 @@ func (pl *PodTopologySpread) PreScore(
 func (pl *PodTopologySpread) Score(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
 	nodeInfo, err := pl.sharedLister.NodeInfos().Get(nodeName)
 	if err != nil {
-		return 0, framework.AsStatus(fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
+		return 0, framework.AsStatus(Name, fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
 	}
 
 	node := nodeInfo.Node()
 	s, err := getPreScoreState(cycleState)
 	if err != nil {
-		return 0, framework.AsStatus(err)
+		return 0, framework.AsStatus(Name, err)
 	}
 
 	// Return if the node is not qualified.
@@ -211,7 +211,7 @@ func (pl *PodTopologySpread) Score(ctx context.Context, cycleState *framework.Cy
 func (pl *PodTopologySpread) NormalizeScore(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, scores framework.NodeScoreList) *framework.Status {
 	s, err := getPreScoreState(cycleState)
 	if err != nil {
-		return framework.AsStatus(err)
+		return framework.AsStatus(Name, err)
 	}
 	if s == nil {
 		return nil

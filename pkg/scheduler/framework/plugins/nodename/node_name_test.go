@@ -63,7 +63,7 @@ func TestNodeName(t *testing.T) {
 				},
 			},
 			name:       "host doesn't match",
-			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReason),
+			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReason)),
 		},
 	}
 

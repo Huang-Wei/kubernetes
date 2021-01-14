@@ -40,7 +40,7 @@ func TestNodeUnschedulable(t *testing.T) {
 					Unschedulable: true,
 				},
 			},
-			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonUnschedulable),
+			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonUnschedulable)),
 		},
 		{
 			name: "Schedule pod to normal node",

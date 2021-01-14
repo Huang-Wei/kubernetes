@@ -52,6 +52,7 @@ import (
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/podtopologyspread"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/queuesort"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/tainttoleration"
+	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/volumebinding"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/volumerestrictions"
 	"k8s.io/kubernetes/pkg/scheduler/framework/plugins/volumezone"
 	frameworkruntime "k8s.io/kubernetes/pkg/scheduler/framework/runtime"
@@ -1231,7 +1232,7 @@ func TestPodEligibleToPreemptOthers(t *testing.T) {
 			pod:                 st.MakePod().Name("p_with_nominated_node").UID("p").Priority(highPriority).NominatedNodeName("node1").Obj(),
 			pods:                []*v1.Pod{st.MakePod().Name("p1").UID("p1").Priority(lowPriority).Node("node1").Terminating().Obj()},
 			nodes:               []string{"node1"},
-			nominatedNodeStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, tainttoleration.ErrReasonNotMatch),
+			nominatedNodeStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(tainttoleration.Name, tainttoleration.ErrReasonNotMatch)),
 			expected:            true,
 		},
 		{
@@ -1284,86 +1285,86 @@ func TestNodesWherePreemptionMightHelp(t *testing.T) {
 		{
 			name: "No node should be attempted",
 			nodesStatuses: framework.NodeToStatusMap{
-				"node1": framework.NewStatus(framework.UnschedulableAndUnresolvable, nodeaffinity.ErrReasonPod),
-				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, nodename.ErrReason),
-				"node3": framework.NewStatus(framework.UnschedulableAndUnresolvable, tainttoleration.ErrReasonNotMatch),
-				"node4": framework.NewStatus(framework.UnschedulableAndUnresolvable, nodelabel.ErrReasonPresenceViolated),
+				"node1": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(nodeaffinity.Name, nodeaffinity.ErrReasonPod)),
+				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(nodename.Name, nodename.ErrReason)),
+				"node3": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(tainttoleration.Name, tainttoleration.ErrReasonNotMatch)),
+				"node4": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(nodelabel.Name, nodelabel.ErrReasonPresenceViolated)),
 			},
 			expected: map[string]bool{},
 		},
 		{
 			name: "ErrReasonAffinityNotMatch should be tried as it indicates that the pod is unschedulable due to inter-pod affinity or anti-affinity",
 			nodesStatuses: framework.NodeToStatusMap{
-				"node1": framework.NewStatus(framework.Unschedulable, interpodaffinity.ErrReasonAffinityNotMatch),
-				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, nodename.ErrReason),
-				"node3": framework.NewStatus(framework.UnschedulableAndUnresolvable, nodeunschedulable.ErrReasonUnschedulable),
+				"node1": framework.NewStatus(framework.Unschedulable, framework.NewFailure(interpodaffinity.Name, interpodaffinity.ErrReasonAffinityNotMatch)),
+				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(nodename.Name, nodename.ErrReason)),
+				"node3": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(nodeunschedulable.Name, nodeunschedulable.ErrReasonUnschedulable)),
 			},
 			expected: map[string]bool{"node1": true, "node4": true},
 		},
 		{
 			name: "pod with both pod affinity and anti-affinity should be tried",
 			nodesStatuses: framework.NodeToStatusMap{
-				"node1": framework.NewStatus(framework.Unschedulable, interpodaffinity.ErrReasonAffinityNotMatch),
-				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, nodename.ErrReason),
+				"node1": framework.NewStatus(framework.Unschedulable, framework.NewFailure(interpodaffinity.Name, interpodaffinity.ErrReasonAffinityNotMatch)),
+				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(nodename.Name, nodename.ErrReason)),
 			},
 			expected: map[string]bool{"node1": true, "node3": true, "node4": true},
 		},
 		{
 			name: "ErrReasonAffinityRulesNotMatch should not be tried as it indicates that the pod is unschedulable due to inter-pod affinity, but ErrReasonAffinityNotMatch should be tried as it indicates that the pod is unschedulable due to inter-pod affinity or anti-affinity",
 			nodesStatuses: framework.NodeToStatusMap{
-				"node1": framework.NewStatus(framework.UnschedulableAndUnresolvable, interpodaffinity.ErrReasonAffinityRulesNotMatch),
-				"node2": framework.NewStatus(framework.Unschedulable, interpodaffinity.ErrReasonAffinityNotMatch),
+				"node1": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(interpodaffinity.Name, interpodaffinity.ErrReasonAffinityRulesNotMatch)),
+				"node2": framework.NewStatus(framework.Unschedulable, framework.NewFailure(interpodaffinity.Name, interpodaffinity.ErrReasonAffinityNotMatch)),
 			},
 			expected: map[string]bool{"node2": true, "node3": true, "node4": true},
 		},
 		{
 			name: "Mix of failed predicates works fine",
 			nodesStatuses: framework.NodeToStatusMap{
-				"node1": framework.NewStatus(framework.UnschedulableAndUnresolvable, volumerestrictions.ErrReasonDiskConflict),
-				"node2": framework.NewStatus(framework.Unschedulable, fmt.Sprintf("Insufficient %v", v1.ResourceMemory)),
+				"node1": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(volumerestrictions.Name, volumerestrictions.ErrReasonDiskConflict)),
+				"node2": framework.NewStatus(framework.Unschedulable, framework.NewFailure(noderesources.FitName, fmt.Sprintf("Insufficient %v", v1.ResourceMemory))),
 			},
 			expected: map[string]bool{"node2": true, "node3": true, "node4": true},
 		},
 		{
 			name: "Node condition errors should be considered unresolvable",
 			nodesStatuses: framework.NodeToStatusMap{
-				"node1": framework.NewStatus(framework.UnschedulableAndUnresolvable, nodeunschedulable.ErrReasonUnknownCondition),
+				"node1": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(nodeunschedulable.Name, nodeunschedulable.ErrReasonUnknownCondition)),
 			},
 			expected: map[string]bool{"node2": true, "node3": true, "node4": true},
 		},
 		{
 			name: "ErrVolume... errors should not be tried as it indicates that the pod is unschedulable due to no matching volumes for pod on node",
 			nodesStatuses: framework.NodeToStatusMap{
-				"node1": framework.NewStatus(framework.UnschedulableAndUnresolvable, volumezone.ErrReasonConflict),
-				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, string(volumescheduling.ErrReasonNodeConflict)),
-				"node3": framework.NewStatus(framework.UnschedulableAndUnresolvable, string(volumescheduling.ErrReasonBindConflict)),
+				"node1": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(volumezone.Name, volumezone.ErrReasonConflict)),
+				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(volumebinding.Name, string(volumescheduling.ErrReasonNodeConflict))),
+				"node3": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(volumebinding.Name, string(volumescheduling.ErrReasonBindConflict))),
 			},
 			expected: map[string]bool{"node4": true},
 		},
 		{
 			name: "ErrReasonConstraintsNotMatch should be tried as it indicates that the pod is unschedulable due to topology spread constraints",
 			nodesStatuses: framework.NodeToStatusMap{
-				"node1": framework.NewStatus(framework.Unschedulable, podtopologyspread.ErrReasonConstraintsNotMatch),
-				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, nodename.ErrReason),
-				"node3": framework.NewStatus(framework.Unschedulable, podtopologyspread.ErrReasonConstraintsNotMatch),
+				"node1": framework.NewStatus(framework.Unschedulable, framework.NewFailure(podtopologyspread.Name, podtopologyspread.ErrReasonConstraintsNotMatch)),
+				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(nodename.Name, nodename.ErrReason)),
+				"node3": framework.NewStatus(framework.Unschedulable, framework.NewFailure(podtopologyspread.Name, podtopologyspread.ErrReasonConstraintsNotMatch)),
 			},
 			expected: map[string]bool{"node1": true, "node3": true, "node4": true},
 		},
 		{
 			name: "UnschedulableAndUnresolvable status should be skipped but Unschedulable should be tried",
 			nodesStatuses: framework.NodeToStatusMap{
-				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, ""),
-				"node3": framework.NewStatus(framework.Unschedulable, ""),
-				"node4": framework.NewStatus(framework.UnschedulableAndUnresolvable, ""),
+				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable),
+				"node3": framework.NewStatus(framework.Unschedulable),
+				"node4": framework.NewStatus(framework.UnschedulableAndUnresolvable),
 			},
 			expected: map[string]bool{"node1": true, "node3": true},
 		},
 		{
 			name: "ErrReasonNodeLabelNotMatch should not be tried as it indicates that the pod is unschedulable due to node doesn't have the required label",
 			nodesStatuses: framework.NodeToStatusMap{
-				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, podtopologyspread.ErrReasonNodeLabelNotMatch),
-				"node3": framework.NewStatus(framework.Unschedulable, ""),
-				"node4": framework.NewStatus(framework.UnschedulableAndUnresolvable, ""),
+				"node2": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(podtopologyspread.Name, podtopologyspread.ErrReasonNodeLabelNotMatch)),
+				"node3": framework.NewStatus(framework.Unschedulable),
+				"node4": framework.NewStatus(framework.UnschedulableAndUnresolvable),
 			},
 			expected: map[string]bool{"node1": true, "node3": true},
 		},

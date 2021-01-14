@@ -148,7 +148,7 @@ func TestSingleZone(t *testing.T) {
 					Labels: map[string]string{v1.LabelFailureDomainBetaRegion: "no_us-west1", "uselessLabel": "none"},
 				},
 			},
-			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonConflict),
+			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonConflict)),
 		},
 		{
 			name: "beta zone label doesn't match",
@@ -159,7 +159,7 @@ func TestSingleZone(t *testing.T) {
 					Labels: map[string]string{v1.LabelFailureDomainBetaZone: "no_us-west1-a", "uselessLabel": "none"},
 				},
 			},
-			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonConflict),
+			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonConflict)),
 		},
 		{
 			name: "zone label matched",
@@ -190,7 +190,7 @@ func TestSingleZone(t *testing.T) {
 					Labels: map[string]string{v1.LabelTopologyRegion: "no_us-west1", "uselessLabel": "none"},
 				},
 			},
-			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonConflict),
+			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonConflict)),
 		},
 		{
 			name: "zone label doesn't match",
@@ -201,7 +201,7 @@ func TestSingleZone(t *testing.T) {
 					Labels: map[string]string{v1.LabelTopologyZone: "no_us-west1-a", "uselessLabel": "none"},
 				},
 			},
-			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonConflict),
+			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonConflict)),
 		},
 	}
 
@@ -302,7 +302,7 @@ func TestMultiZone(t *testing.T) {
 					Labels: map[string]string{v1.LabelFailureDomainBetaZone: "us-west1-b", "uselessLabel": "none"},
 				},
 			},
-			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonConflict),
+			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonConflict)),
 		},
 		{
 			name: "zone label matched",
@@ -323,7 +323,7 @@ func TestMultiZone(t *testing.T) {
 					Labels: map[string]string{v1.LabelTopologyZone: "us-west1-b", "uselessLabel": "none"},
 				},
 			},
-			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonConflict),
+			wantStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonConflict)),
 		},
 	}
 
@@ -414,20 +414,21 @@ func TestWithBinding(t *testing.T) {
 			Pod:  createPodWithVolume("pod_1", "vol_1", "PVC_EmptySC"),
 			Node: testNode,
 			wantStatus: framework.NewStatus(framework.Error,
-				"PersistentVolumeClaim had no pv name and storageClass name"),
+				framework.NewFailure(Name, "PersistentVolumeClaim had no pv name and storageClass name")),
 		},
 		{
 			name: "unbound volume no storage class",
 			Pod:  createPodWithVolume("pod_1", "vol_1", "PVC_NoSC"),
 			Node: testNode,
 			wantStatus: framework.NewStatus(framework.Error,
-				"StorageClass \"Class_0\" claimed by PersistentVolumeClaim \"PVC_NoSC\" not found"),
+				framework.NewFailure(Name, `StorageClass "Class_0" claimed by PersistentVolumeClaim "PVC_NoSC" not found`)),
 		},
 		{
-			name:       "unbound volume immediate binding mode",
-			Pod:        createPodWithVolume("pod_1", "vol_1", "PVC_ImmediateSC"),
-			Node:       testNode,
-			wantStatus: framework.NewStatus(framework.Error, "VolumeBindingMode not set for StorageClass \"Class_Immediate\""),
+			name: "unbound volume immediate binding mode",
+			Pod:  createPodWithVolume("pod_1", "vol_1", "PVC_ImmediateSC"),
+			Node: testNode,
+			wantStatus: framework.NewStatus(framework.Error,
+				framework.NewFailure(Name, `VolumeBindingMode not set for StorageClass "Class_Immediate"`)),
 		},
 		{
 			name: "unbound volume wait binding mode",

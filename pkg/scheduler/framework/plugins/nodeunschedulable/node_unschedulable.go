@@ -50,7 +50,7 @@ func (pl *NodeUnschedulable) Name() string {
 // Filter invoked at the filter extension point.
 func (pl *NodeUnschedulable) Filter(ctx context.Context, _ *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 	if nodeInfo == nil || nodeInfo.Node() == nil {
-		return framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonUnknownCondition)
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonUnknownCondition))
 	}
 	// If pod tolerate unschedulable taint, it's also tolerate `node.Spec.Unschedulable`.
 	podToleratesUnschedulable := v1helper.TolerationsTolerateTaint(pod.Spec.Tolerations, &v1.Taint{
@@ -59,7 +59,7 @@ func (pl *NodeUnschedulable) Filter(ctx context.Context, _ *framework.CycleState
 	})
 	// TODO (k82cn): deprecates `node.Spec.Unschedulable` in 1.13.
 	if nodeInfo.Node().Spec.Unschedulable && !podToleratesUnschedulable {
-		return framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonUnschedulable)
+		return framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonUnschedulable))
 	}
 	return nil
 }

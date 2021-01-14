@@ -230,7 +230,7 @@ func TestSchedulerScheduleOne(t *testing.T) {
 			sendPod: podWithID("foo", ""),
 			algo:    mockScheduler{core.ScheduleResult{SuggestedHost: testNode.Name, EvaluatedNodes: 1, FeasibleNodes: 1}, nil},
 			registerPluginFuncs: []st.RegisterPluginFunc{
-				st.RegisterReservePlugin("FakeReserve", st.NewFakeReservePlugin(framework.NewStatus(framework.Error, "reserve error"))),
+				st.RegisterReservePlugin("FakeReserve", st.NewFakeReservePlugin(framework.AsStatus("FakeReserve", errors.New("reserve error")))),
 			},
 			expectErrorPod:   podWithID("foo", testNode.Name),
 			expectForgetPod:  podWithID("foo", testNode.Name),
@@ -243,7 +243,7 @@ func TestSchedulerScheduleOne(t *testing.T) {
 			sendPod: podWithID("foo", ""),
 			algo:    mockScheduler{core.ScheduleResult{SuggestedHost: testNode.Name, EvaluatedNodes: 1, FeasibleNodes: 1}, nil},
 			registerPluginFuncs: []st.RegisterPluginFunc{
-				st.RegisterPermitPlugin("FakePermit", st.NewFakePermitPlugin(framework.NewStatus(framework.Error, "permit error"), time.Minute)),
+				st.RegisterPermitPlugin("FakePermit", st.NewFakePermitPlugin(framework.AsStatus("FakePermit", errors.New("permit error")), time.Minute)),
 			},
 			expectErrorPod:   podWithID("foo", testNode.Name),
 			expectForgetPod:  podWithID("foo", testNode.Name),
@@ -256,7 +256,7 @@ func TestSchedulerScheduleOne(t *testing.T) {
 			sendPod: podWithID("foo", ""),
 			algo:    mockScheduler{core.ScheduleResult{SuggestedHost: testNode.Name, EvaluatedNodes: 1, FeasibleNodes: 1}, nil},
 			registerPluginFuncs: []st.RegisterPluginFunc{
-				st.RegisterPreBindPlugin("FakePreBind", st.NewFakePreBindPlugin(framework.AsStatus(preBindErr))),
+				st.RegisterPreBindPlugin("FakePreBind", st.NewFakePreBindPlugin(framework.AsStatus("FakePreBind", preBindErr))),
 			},
 			expectErrorPod:   podWithID("foo", testNode.Name),
 			expectForgetPod:  podWithID("foo", testNode.Name),
@@ -639,7 +639,7 @@ func TestSchedulerNoPhantomPodAfterDelete(t *testing.T) {
 			FilteredNodesStatuses: framework.NodeToStatusMap{
 				node.Name: framework.NewStatus(
 					framework.Unschedulable,
-					nodeports.ErrReason,
+					framework.NewFailure(nodeports.Name, nodeports.ErrReason),
 				),
 			},
 		}
@@ -759,8 +759,8 @@ func TestSchedulerFailedSchedulingReasons(t *testing.T) {
 	for _, node := range nodes {
 		failedNodeStatues[node.Name] = framework.NewStatus(
 			framework.Unschedulable,
-			fmt.Sprintf("Insufficient %v", v1.ResourceCPU),
-			fmt.Sprintf("Insufficient %v", v1.ResourceMemory),
+			framework.NewFailure(noderesources.FitName, fmt.Sprintf("Insufficient %v", v1.ResourceCPU)),
+			framework.NewFailure(noderesources.FitName, fmt.Sprintf("Insufficient %v", v1.ResourceMemory)),
 		)
 	}
 	fns := []st.RegisterPluginFunc{

@@ -64,7 +64,7 @@ const (
 	// RollbackDone is the done rollback event reason
 	RollbackDone = "DeploymentRollback"
 
-	// Reasons for deployment conditions
+	// Failures for deployment conditions
 	//
 	// Progressing:
 

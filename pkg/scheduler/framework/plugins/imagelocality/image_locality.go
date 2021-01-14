@@ -53,12 +53,12 @@ func (pl *ImageLocality) Name() string {
 func (pl *ImageLocality) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
 	nodeInfo, err := pl.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
 	if err != nil {
-		return 0, framework.AsStatus(fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
+		return 0, framework.AsStatus(Name, fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
 	}
 
 	nodeInfos, err := pl.handle.SnapshotSharedLister().NodeInfos().List()
 	if err != nil {
-		return 0, framework.AsStatus(err)
+		return 0, framework.AsStatus(Name, err)
 	}
 	totalNumNodes := len(nodeInfos)
 

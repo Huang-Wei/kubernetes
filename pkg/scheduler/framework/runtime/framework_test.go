@@ -142,10 +142,10 @@ type TestPlugin struct {
 }
 
 func (pl *TestPlugin) AddPod(ctx context.Context, state *framework.CycleState, podToSchedule *v1.Pod, podToAdd *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
-	return framework.NewStatus(framework.Code(pl.inj.PreFilterAddPodStatus), "injected status")
+	return framework.NewStatus(framework.Code(pl.inj.PreFilterAddPodStatus), framework.NewFailure(pl.Name(), "injected status"))
 }
 func (pl *TestPlugin) RemovePod(ctx context.Context, state *framework.CycleState, podToSchedule *v1.Pod, podToRemove *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
-	return framework.NewStatus(framework.Code(pl.inj.PreFilterRemovePodStatus), "injected status")
+	return framework.NewStatus(framework.Code(pl.inj.PreFilterRemovePodStatus), framework.NewFailure(pl.Name(), "injected status"))
 }
 
 func (pl *TestPlugin) Name() string {
@@ -157,7 +157,7 @@ func (pl *TestPlugin) Less(*framework.QueuedPodInfo, *framework.QueuedPodInfo) b
 }
 
 func (pl *TestPlugin) Score(ctx context.Context, state *framework.CycleState, p *v1.Pod, nodeName string) (int64, *framework.Status) {
-	return 0, framework.NewStatus(framework.Code(pl.inj.ScoreStatus), "injected status")
+	return 0, framework.NewStatus(framework.Code(pl.inj.ScoreStatus), framework.NewFailure(pl.Name(), "injected status"))
 }
 
 func (pl *TestPlugin) ScoreExtensions() framework.ScoreExtensions {
@@ -165,7 +165,7 @@ func (pl *TestPlugin) ScoreExtensions() framework.ScoreExtensions {
 }
 
 func (pl *TestPlugin) PreFilter(ctx context.Context, state *framework.CycleState, p *v1.Pod) *framework.Status {
-	return framework.NewStatus(framework.Code(pl.inj.PreFilterStatus), "injected status")
+	return framework.NewStatus(framework.Code(pl.inj.PreFilterStatus), framework.NewFailure(pl.Name(), "injected status"))
 }
 
 func (pl *TestPlugin) PreFilterExtensions() framework.PreFilterExtensions {
@@ -173,37 +173,37 @@ func (pl *TestPlugin) PreFilterExtensions() framework.PreFilterExtensions {
 }
 
 func (pl *TestPlugin) Filter(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
-	return framework.NewStatus(framework.Code(pl.inj.FilterStatus), "injected filter status")
+	return framework.NewStatus(framework.Code(pl.inj.FilterStatus), framework.NewFailure(pl.Name(), "injected filter status"))
 }
 
 func (pl *TestPlugin) PostFilter(_ context.Context, _ *framework.CycleState, _ *v1.Pod, _ framework.NodeToStatusMap) (*framework.PostFilterResult, *framework.Status) {
-	return nil, framework.NewStatus(framework.Code(pl.inj.PostFilterStatus), "injected status")
+	return nil, framework.NewStatus(framework.Code(pl.inj.PostFilterStatus), framework.NewFailure(pl.Name(), "injected status"))
 }
 
 func (pl *TestPlugin) PreScore(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodes []*v1.Node) *framework.Status {
-	return framework.NewStatus(framework.Code(pl.inj.PreScoreStatus), "injected status")
+	return framework.NewStatus(framework.Code(pl.inj.PreScoreStatus), framework.NewFailure(pl.Name(), "injected status"))
 }
 
 func (pl *TestPlugin) Reserve(ctx context.Context, state *framework.CycleState, p *v1.Pod, nodeName string) *framework.Status {
-	return framework.NewStatus(framework.Code(pl.inj.ReserveStatus), "injected status")
+	return framework.NewStatus(framework.Code(pl.inj.ReserveStatus), framework.NewFailure(pl.Name(), "injected status"))
 }
 
 func (pl *TestPlugin) Unreserve(ctx context.Context, state *framework.CycleState, p *v1.Pod, nodeName string) {
 }
 
 func (pl *TestPlugin) PreBind(ctx context.Context, state *framework.CycleState, p *v1.Pod, nodeName string) *framework.Status {
-	return framework.NewStatus(framework.Code(pl.inj.PreBindStatus), "injected status")
+	return framework.NewStatus(framework.Code(pl.inj.PreBindStatus), framework.NewFailure(pl.Name(), "injected status"))
 }
 
 func (pl *TestPlugin) PostBind(ctx context.Context, state *framework.CycleState, p *v1.Pod, nodeName string) {
 }
 
 func (pl *TestPlugin) Permit(ctx context.Context, state *framework.CycleState, p *v1.Pod, nodeName string) (*framework.Status, time.Duration) {
-	return framework.NewStatus(framework.Code(pl.inj.PermitStatus), "injected status"), time.Duration(0)
+	return framework.NewStatus(framework.Code(pl.inj.PermitStatus), framework.NewFailure(pl.Name(), "injected status")), time.Duration(0)
 }
 
 func (pl *TestPlugin) Bind(ctx context.Context, state *framework.CycleState, p *v1.Pod, nodeName string) *framework.Status {
-	return framework.NewStatus(framework.Code(pl.inj.BindStatus), "injected status")
+	return framework.NewStatus(framework.Code(pl.inj.BindStatus), framework.NewFailure(pl.Name(), "injected status"))
 }
 
 // TestPreFilterPlugin only implements PreFilterPlugin interface.
@@ -286,7 +286,7 @@ func (pp *TestPermitPlugin) Name() string {
 	return permitPlugin
 }
 func (pp *TestPermitPlugin) Permit(ctx context.Context, state *framework.CycleState, p *v1.Pod, nodeName string) (*framework.Status, time.Duration) {
-	return framework.NewStatus(framework.Wait, ""), time.Duration(10 * time.Second)
+	return framework.NewStatus(framework.Wait), 10 * time.Second
 }
 
 var _ framework.QueueSortPlugin = &TestQueueSortPlugin{}
@@ -891,8 +891,8 @@ func TestFilterPlugins(t *testing.T) {
 					inj:  injectedResult{FilterStatus: int(framework.Error)},
 				},
 			},
-			wantStatus:    framework.NewStatus(framework.Error, `running "TestPlugin" filter plugin for pod "": injected filter status`),
-			wantStatusMap: framework.PluginToStatus{"TestPlugin": framework.NewStatus(framework.Error, `running "TestPlugin" filter plugin for pod "": injected filter status`)},
+			wantStatus:    framework.AsStatus("TestPlugin", fmt.Errorf(`running "TestPlugin" filter plugin for pod "": injected filter status`)),
+			wantStatusMap: framework.PluginToStatus{"TestPlugin": framework.AsStatus("TestPlugin", fmt.Errorf(`running "TestPlugin" filter plugin for pod "": injected filter status`))},
 		},
 		{
 			name: "UnschedulableFilter",
@@ -902,8 +902,8 @@ func TestFilterPlugins(t *testing.T) {
 					inj:  injectedResult{FilterStatus: int(framework.Unschedulable)},
 				},
 			},
-			wantStatus:    framework.NewStatus(framework.Unschedulable, "injected filter status"),
-			wantStatusMap: framework.PluginToStatus{"TestPlugin": framework.NewStatus(framework.Unschedulable, "injected filter status")},
+			wantStatus:    framework.NewStatus(framework.Unschedulable, framework.NewFailure("TestPlugin", "injected filter status")),
+			wantStatusMap: framework.PluginToStatus{"TestPlugin": framework.NewStatus(framework.Unschedulable, framework.NewFailure("TestPlugin", "injected filter status"))},
 		},
 		{
 			name: "UnschedulableAndUnresolvableFilter",
@@ -914,8 +914,8 @@ func TestFilterPlugins(t *testing.T) {
 						FilterStatus: int(framework.UnschedulableAndUnresolvable)},
 				},
 			},
-			wantStatus:    framework.NewStatus(framework.UnschedulableAndUnresolvable, "injected filter status"),
-			wantStatusMap: framework.PluginToStatus{"TestPlugin": framework.NewStatus(framework.UnschedulableAndUnresolvable, "injected filter status")},
+			wantStatus:    framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure("TestPlugin", "injected filter status")),
+			wantStatusMap: framework.PluginToStatus{"TestPlugin": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure("TestPlugin", "injected filter status"))},
 		},
 		// followings tests cover multiple-plugins scenarios
 		{
@@ -931,8 +931,8 @@ func TestFilterPlugins(t *testing.T) {
 					inj:  injectedResult{FilterStatus: int(framework.Error)},
 				},
 			},
-			wantStatus:    framework.NewStatus(framework.Error, `running "TestPlugin1" filter plugin for pod "": injected filter status`),
-			wantStatusMap: framework.PluginToStatus{"TestPlugin1": framework.NewStatus(framework.Error, `running "TestPlugin1" filter plugin for pod "": injected filter status`)},
+			wantStatus:    framework.AsStatus("TestPlugins1", fmt.Errorf(`running filter plugin for pod "": [TestPlugins1] injected filter status`)),
+			wantStatusMap: framework.PluginToStatus{"TestPlugin1": framework.AsStatus("TestPlugins1", fmt.Errorf(`running filter plugin for pod "": [TestPlugins1] injected filter status`))},
 		},
 		{
 			name: "SuccessAndSuccessFilters",
@@ -962,8 +962,8 @@ func TestFilterPlugins(t *testing.T) {
 					inj:  injectedResult{FilterStatus: int(framework.Success)},
 				},
 			},
-			wantStatus:    framework.NewStatus(framework.Error, `running "TestPlugin1" filter plugin for pod "": injected filter status`),
-			wantStatusMap: framework.PluginToStatus{"TestPlugin1": framework.NewStatus(framework.Error, `running "TestPlugin1" filter plugin for pod "": injected filter status`)},
+			wantStatus:    framework.AsStatus("TestPlugins1", fmt.Errorf(`running filter plugin for pod "": [TestPlugins1] injected filter status`)),
+			wantStatusMap: framework.PluginToStatus{"TestPlugin1": framework.AsStatus("TestPlugins1", fmt.Errorf(`running filter plugin for pod "": [TestPlugins1] injected filter status`))},
 		},
 		{
 			name: "SuccessAndErrorFilters",
@@ -978,8 +978,8 @@ func TestFilterPlugins(t *testing.T) {
 					inj:  injectedResult{FilterStatus: int(framework.Error)},
 				},
 			},
-			wantStatus:    framework.NewStatus(framework.Error, `running "TestPlugin2" filter plugin for pod "": injected filter status`),
-			wantStatusMap: framework.PluginToStatus{"TestPlugin2": framework.NewStatus(framework.Error, `running "TestPlugin2" filter plugin for pod "": injected filter status`)},
+			wantStatus:    framework.AsStatus("TestPlugins2", fmt.Errorf(`running filter plugin for pod "": [TestPlugins2] injected filter status`)),
+			wantStatusMap: framework.PluginToStatus{"TestPlugin2": framework.AsStatus("TestPlugins2", fmt.Errorf(`running filter plugin for pod "": [TestPlugins2] injected filter status`))},
 		},
 		{
 			name: "SuccessAndUnschedulableFilters",
@@ -994,8 +994,8 @@ func TestFilterPlugins(t *testing.T) {
 					inj:  injectedResult{FilterStatus: int(framework.Unschedulable)},
 				},
 			},
-			wantStatus:    framework.NewStatus(framework.Unschedulable, "injected filter status"),
-			wantStatusMap: framework.PluginToStatus{"TestPlugin2": framework.NewStatus(framework.Unschedulable, "injected filter status")},
+			wantStatus:    framework.NewStatus(framework.Unschedulable, framework.NewFailure("TestPlugins2", "injected filter status")),
+			wantStatusMap: framework.PluginToStatus{"TestPlugin2": framework.NewStatus(framework.Unschedulable, framework.NewFailure("TestPlugins2", "injected filter status"))},
 		},
 		{
 			name: "SuccessFilterWithRunAllFilters",
@@ -1023,8 +1023,8 @@ func TestFilterPlugins(t *testing.T) {
 				},
 			},
 			runAllFilters: true,
-			wantStatus:    framework.NewStatus(framework.Error, `running "TestPlugin1" filter plugin for pod "": injected filter status`),
-			wantStatusMap: framework.PluginToStatus{"TestPlugin1": framework.NewStatus(framework.Error, `running "TestPlugin1" filter plugin for pod "": injected filter status`)},
+			wantStatus:    framework.AsStatus("TestPlugins1", fmt.Errorf(`running filter plugin for pod "": [TestPlugins1] injected filter status`)),
+			wantStatusMap: framework.PluginToStatus{"TestPlugin1": framework.AsStatus("TestPlugins1", fmt.Errorf(`running filter plugin for pod "": [TestPlugins1] injected filter status`))},
 		},
 		{
 			name: "ErrorAndErrorFilters",
@@ -1039,10 +1039,10 @@ func TestFilterPlugins(t *testing.T) {
 				},
 			},
 			runAllFilters: true,
-			wantStatus:    framework.NewStatus(framework.UnschedulableAndUnresolvable, "injected filter status", "injected filter status"),
+			wantStatus:    framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure("TestPlugins1", "injected filter status"), framework.NewFailure("TestPlugins2", "injected filter status")),
 			wantStatusMap: framework.PluginToStatus{
-				"TestPlugin1": framework.NewStatus(framework.UnschedulableAndUnresolvable, "injected filter status"),
-				"TestPlugin2": framework.NewStatus(framework.Unschedulable, "injected filter status"),
+				"TestPlugin1": framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure("TestPlugins1", "injected filter status")),
+				"TestPlugin2": framework.NewStatus(framework.Unschedulable, framework.NewFailure("TestPlugins2", "injected filter status")),
 			},
 		},
 	}
@@ -1097,7 +1097,7 @@ func TestPostFilterPlugins(t *testing.T) {
 					inj:  injectedResult{PostFilterStatus: int(framework.Success)},
 				},
 			},
-			wantStatus: framework.NewStatus(framework.Success, "injected status"),
+			wantStatus: framework.NewStatus(framework.Success),
 		},
 		{
 			name: "plugin1 failed to make a Pod schedulable, followed by plugin2 which makes the Pod schedulable",
@@ -1111,7 +1111,7 @@ func TestPostFilterPlugins(t *testing.T) {
 					inj:  injectedResult{PostFilterStatus: int(framework.Success)},
 				},
 			},
-			wantStatus: framework.NewStatus(framework.Success, "injected status"),
+			wantStatus: framework.NewStatus(framework.Success),
 		},
 		{
 			name: "plugin1 makes a Pod schedulable, followed by plugin2 which cannot make the Pod schedulable",
@@ -1125,7 +1125,7 @@ func TestPostFilterPlugins(t *testing.T) {
 					inj:  injectedResult{PostFilterStatus: int(framework.Unschedulable)},
 				},
 			},
-			wantStatus: framework.NewStatus(framework.Success, "injected status"),
+			wantStatus: framework.NewStatus(framework.Success),
 		},
 	}
 

@@ -76,14 +76,14 @@ func TestNodePorts(t *testing.T) {
 			nodeInfo: framework.NewNodeInfo(
 				newPod("m1", "UDP/127.0.0.1/8080")),
 			name:       "same udp port",
-			wantStatus: framework.NewStatus(framework.Unschedulable, ErrReason),
+			wantStatus: framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReason)),
 		},
 		{
 			pod: newPod("m1", "TCP/127.0.0.1/8080"),
 			nodeInfo: framework.NewNodeInfo(
 				newPod("m1", "TCP/127.0.0.1/8080")),
 			name:       "same tcp port",
-			wantStatus: framework.NewStatus(framework.Unschedulable, ErrReason),
+			wantStatus: framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReason)),
 		},
 		{
 			pod: newPod("m1", "TCP/127.0.0.1/8080"),
@@ -102,35 +102,35 @@ func TestNodePorts(t *testing.T) {
 			nodeInfo: framework.NewNodeInfo(
 				newPod("m1", "UDP/127.0.0.1/8080")),
 			name:       "second udp port conflict",
-			wantStatus: framework.NewStatus(framework.Unschedulable, ErrReason),
+			wantStatus: framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReason)),
 		},
 		{
 			pod: newPod("m1", "TCP/127.0.0.1/8001", "UDP/127.0.0.1/8080"),
 			nodeInfo: framework.NewNodeInfo(
 				newPod("m1", "TCP/127.0.0.1/8001", "UDP/127.0.0.1/8081")),
 			name:       "first tcp port conflict",
-			wantStatus: framework.NewStatus(framework.Unschedulable, ErrReason),
+			wantStatus: framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReason)),
 		},
 		{
 			pod: newPod("m1", "TCP/0.0.0.0/8001"),
 			nodeInfo: framework.NewNodeInfo(
 				newPod("m1", "TCP/127.0.0.1/8001")),
 			name:       "first tcp port conflict due to 0.0.0.0 hostIP",
-			wantStatus: framework.NewStatus(framework.Unschedulable, ErrReason),
+			wantStatus: framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReason)),
 		},
 		{
 			pod: newPod("m1", "TCP/10.0.10.10/8001", "TCP/0.0.0.0/8001"),
 			nodeInfo: framework.NewNodeInfo(
 				newPod("m1", "TCP/127.0.0.1/8001")),
 			name:       "TCP hostPort conflict due to 0.0.0.0 hostIP",
-			wantStatus: framework.NewStatus(framework.Unschedulable, ErrReason),
+			wantStatus: framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReason)),
 		},
 		{
 			pod: newPod("m1", "TCP/127.0.0.1/8001"),
 			nodeInfo: framework.NewNodeInfo(
 				newPod("m1", "TCP/0.0.0.0/8001")),
 			name:       "second tcp port conflict to 0.0.0.0 hostIP",
-			wantStatus: framework.NewStatus(framework.Unschedulable, ErrReason),
+			wantStatus: framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReason)),
 		},
 		{
 			pod: newPod("m1", "UDP/127.0.0.1/8001"),
@@ -143,7 +143,7 @@ func TestNodePorts(t *testing.T) {
 			nodeInfo: framework.NewNodeInfo(
 				newPod("m1", "TCP/0.0.0.0/8001", "UDP/0.0.0.0/8001")),
 			name:       "UDP hostPort conflict due to 0.0.0.0 hostIP",
-			wantStatus: framework.NewStatus(framework.Unschedulable, ErrReason),
+			wantStatus: framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReason)),
 		},
 	}
 
@@ -171,7 +171,7 @@ func TestPreFilterDisabled(t *testing.T) {
 	p, _ := New(nil, nil)
 	cycleState := framework.NewCycleState()
 	gotStatus := p.(framework.FilterPlugin).Filter(context.Background(), cycleState, pod, nodeInfo)
-	wantStatus := framework.AsStatus(fmt.Errorf(`reading "PreFilterNodePorts" from cycleState: %w`, fmt.Errorf("not found")))
+	wantStatus := framework.AsStatus(Name, fmt.Errorf(`reading "PreFilterNodePorts" from cycleState: %w`, fmt.Errorf("not found")))
 	if !reflect.DeepEqual(gotStatus, wantStatus) {
 		t.Errorf("status does not match: %v, want: %v", gotStatus, wantStatus)
 	}

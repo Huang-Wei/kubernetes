@@ -48,7 +48,7 @@ func TestGCEDiskConflicts(t *testing.T) {
 			},
 		},
 	}
-	errStatus := framework.NewStatus(framework.Unschedulable, ErrReasonDiskConflict)
+	errStatus := framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReasonDiskConflict))
 	tests := []struct {
 		pod        *v1.Pod
 		nodeInfo   *framework.NodeInfo
@@ -96,7 +96,7 @@ func TestAWSDiskConflicts(t *testing.T) {
 			},
 		},
 	}
-	errStatus := framework.NewStatus(framework.Unschedulable, ErrReasonDiskConflict)
+	errStatus := framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReasonDiskConflict))
 	tests := []struct {
 		pod        *v1.Pod
 		nodeInfo   *framework.NodeInfo
@@ -150,7 +150,7 @@ func TestRBDDiskConflicts(t *testing.T) {
 			},
 		},
 	}
-	errStatus := framework.NewStatus(framework.Unschedulable, ErrReasonDiskConflict)
+	errStatus := framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReasonDiskConflict))
 	tests := []struct {
 		pod        *v1.Pod
 		nodeInfo   *framework.NodeInfo
@@ -204,7 +204,7 @@ func TestISCSIDiskConflicts(t *testing.T) {
 			},
 		},
 	}
-	errStatus := framework.NewStatus(framework.Unschedulable, ErrReasonDiskConflict)
+	errStatus := framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReasonDiskConflict))
 	tests := []struct {
 		pod        *v1.Pod
 		nodeInfo   *framework.NodeInfo

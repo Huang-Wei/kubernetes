@@ -143,7 +143,7 @@ func TestVolumeBinding(t *testing.T) {
 			pod:                 makePod("pod-a", []string{"pvc-a"}),
 			node:                &v1.Node{},
 			pvcs:                []*v1.PersistentVolumeClaim{},
-			wantPreFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, `persistentvolumeclaim "pvc-a" not found`),
+			wantPreFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, `persistentvolumeclaim "pvc-a" not found`)),
 		},
 		{
 			name: "Part of PVCs do not exist",
@@ -152,7 +152,7 @@ func TestVolumeBinding(t *testing.T) {
 			pvcs: []*v1.PersistentVolumeClaim{
 				makePVC("pvc-a", "pv-a", waitSC.Name),
 			},
-			wantPreFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, `persistentvolumeclaim "pvc-b" not found`),
+			wantPreFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, `persistentvolumeclaim "pvc-b" not found`)),
 		},
 		{
 			name: "immediate claims not bound",
@@ -161,7 +161,7 @@ func TestVolumeBinding(t *testing.T) {
 			pvcs: []*v1.PersistentVolumeClaim{
 				makePVC("pvc-a", "", immediateSC.Name),
 			},
-			wantPreFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, "pod has unbound immediate PersistentVolumeClaims"),
+			wantPreFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, "pod has unbound immediate PersistentVolumeClaims")),
 		},
 		{
 			name: "unbound claims no matches",
@@ -177,7 +177,7 @@ func TestVolumeBinding(t *testing.T) {
 				},
 				podVolumesByNode: map[string]*scheduling.PodVolumes{},
 			},
-			wantFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, string(scheduling.ErrReasonBindConflict)),
+			wantFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, string(scheduling.ErrReasonBindConflict))),
 		},
 		{
 			name: "bound and unbound unsatisfied",
@@ -219,13 +219,17 @@ func TestVolumeBinding(t *testing.T) {
 				},
 				podVolumesByNode: map[string]*scheduling.PodVolumes{},
 			},
-			wantFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, string(scheduling.ErrReasonNodeConflict), string(scheduling.ErrReasonBindConflict)),
+			wantFilterStatus: framework.NewStatus(
+				framework.UnschedulableAndUnresolvable,
+				framework.NewFailure(Name, string(scheduling.ErrReasonNodeConflict)),
+				framework.NewFailure(Name, string(scheduling.ErrReasonBindConflict)),
+			),
 		},
 		{
 			name:                "pvc not found",
 			pod:                 makePod("pod-a", []string{"pvc-a"}),
 			node:                &v1.Node{},
-			wantPreFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, `persistentvolumeclaim "pvc-a" not found`),
+			wantPreFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, `persistentvolumeclaim "pvc-a" not found`)),
 			wantFilterStatus:    nil,
 		},
 		{
@@ -243,7 +247,7 @@ func TestVolumeBinding(t *testing.T) {
 				claimsToBind:     []*v1.PersistentVolumeClaim{},
 				podVolumesByNode: map[string]*scheduling.PodVolumes{},
 			},
-			wantFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, `pvc(s) bound to non-existent pv(s)`),
+			wantFilterStatus: framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, `pvc(s) bound to non-existent pv(s)`)),
 		},
 	}
 

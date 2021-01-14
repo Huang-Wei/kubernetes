@@ -133,7 +133,7 @@ func (pl *ServiceAffinity) PreFilter(ctx context.Context, cycleState *framework.
 
 	s, err := pl.createPreFilterState(pod)
 	if err != nil {
-		return framework.AsStatus(fmt.Errorf("could not create preFilterState: %w", err))
+		return framework.AsStatus(Name, fmt.Errorf("could not create preFilterState: %w", err))
 	}
 	cycleState.Write(preFilterStateKey, s)
 	return nil
@@ -151,7 +151,7 @@ func (pl *ServiceAffinity) PreFilterExtensions() framework.PreFilterExtensions {
 func (pl *ServiceAffinity) AddPod(ctx context.Context, cycleState *framework.CycleState, podToSchedule *v1.Pod, podToAdd *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 	s, err := getPreFilterState(cycleState)
 	if err != nil {
-		return framework.AsStatus(err)
+		return framework.AsStatus(Name, err)
 	}
 
 	// If addedPod is in the same namespace as the pod, update the list
@@ -172,7 +172,7 @@ func (pl *ServiceAffinity) AddPod(ctx context.Context, cycleState *framework.Cyc
 func (pl *ServiceAffinity) RemovePod(ctx context.Context, cycleState *framework.CycleState, podToSchedule *v1.Pod, podToRemove *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 	s, err := getPreFilterState(cycleState)
 	if err != nil {
-		return framework.AsStatus(err)
+		return framework.AsStatus(Name, err)
 	}
 
 	if len(s.matchingPodList) == 0 ||
@@ -239,12 +239,12 @@ func (pl *ServiceAffinity) Filter(ctx context.Context, cycleState *framework.Cyc
 
 	node := nodeInfo.Node()
 	if node == nil {
-		return framework.AsStatus(fmt.Errorf("node not found"))
+		return framework.AsStatus(Name, fmt.Errorf("node not found"))
 	}
 
 	s, err := getPreFilterState(cycleState)
 	if err != nil {
-		return framework.AsStatus(err)
+		return framework.AsStatus(Name, err)
 	}
 
 	pods, services := s.matchingPodList, s.matchingPodServices
@@ -257,7 +257,7 @@ func (pl *ServiceAffinity) Filter(ctx context.Context, cycleState *framework.Cyc
 			if len(filteredPods) > 0 {
 				nodeWithAffinityLabels, err := pl.sharedLister.NodeInfos().Get(filteredPods[0].Spec.NodeName)
 				if err != nil {
-					return framework.AsStatus(fmt.Errorf("node not found"))
+					return framework.AsStatus(Name, fmt.Errorf("node not found"))
 				}
 				addUnsetLabelsToMap(affinityLabels, pl.args.AffinityLabels, labels.Set(nodeWithAffinityLabels.Node().Labels))
 			}
@@ -268,19 +268,19 @@ func (pl *ServiceAffinity) Filter(ctx context.Context, cycleState *framework.Cyc
 		return nil
 	}
 
-	return framework.NewStatus(framework.Unschedulable, ErrReason)
+	return framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReason))
 }
 
 // Score invoked at the Score extension point.
 func (pl *ServiceAffinity) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
 	nodeInfo, err := pl.sharedLister.NodeInfos().Get(nodeName)
 	if err != nil {
-		return 0, framework.AsStatus(fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
+		return 0, framework.AsStatus(Name, fmt.Errorf("getting node %q from Snapshot: %w", nodeName, err))
 	}
 
 	node := nodeInfo.Node()
 	if node == nil {
-		return 0, framework.AsStatus(fmt.Errorf("node not found"))
+		return 0, framework.AsStatus(Name, fmt.Errorf("node not found"))
 	}
 
 	// Pods matched namespace,selector on current node.
@@ -313,7 +313,7 @@ func (pl *ServiceAffinity) NormalizeScore(ctx context.Context, _ *framework.Cycl
 	reduceResult := make([]float64, len(scores))
 	for _, label := range pl.args.AntiAffinityLabelsPreference {
 		if err := pl.updateNodeScoresForLabel(pl.sharedLister, scores, reduceResult, label); err != nil {
-			return framework.AsStatus(err)
+			return framework.AsStatus(Name, err)
 		}
 	}
 

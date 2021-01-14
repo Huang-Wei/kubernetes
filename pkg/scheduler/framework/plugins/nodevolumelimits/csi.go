@@ -75,7 +75,7 @@ func (pl *CSILimits) Filter(ctx context.Context, _ *framework.CycleState, pod *v
 
 	node := nodeInfo.Node()
 	if node == nil {
-		return framework.NewStatus(framework.Error, fmt.Sprintf("node not found"))
+		return framework.AsStatus(pl.Name(), fmt.Errorf("node not found"))
 	}
 
 	// If CSINode doesn't exist, the predicate may read the limits from Node object
@@ -87,7 +87,7 @@ func (pl *CSILimits) Filter(ctx context.Context, _ *framework.CycleState, pod *v
 
 	newVolumes := make(map[string]string)
 	if err := pl.filterAttachableVolumes(csiNode, pod.Spec.Volumes, pod.Namespace, newVolumes); err != nil {
-		return framework.NewStatus(framework.Error, err.Error())
+		return framework.AsStatus(pl.Name(), err)
 	}
 
 	// If the pod doesn't have any new CSI volumes, the predicate will always be true
@@ -104,7 +104,7 @@ func (pl *CSILimits) Filter(ctx context.Context, _ *framework.CycleState, pod *v
 	attachedVolumes := make(map[string]string)
 	for _, existingPod := range nodeInfo.Pods {
 		if err := pl.filterAttachableVolumes(csiNode, existingPod.Pod.Spec.Volumes, existingPod.Pod.Namespace, attachedVolumes); err != nil {
-			return framework.NewStatus(framework.Error, err.Error())
+			return framework.AsStatus(pl.Name(), err)
 		}
 	}
 
@@ -125,7 +125,7 @@ func (pl *CSILimits) Filter(ctx context.Context, _ *framework.CycleState, pod *v
 		if ok {
 			currentVolumeCount := attachedVolumeCount[volumeLimitKey]
 			if currentVolumeCount+count > int(maxVolumeLimit) {
-				return framework.NewStatus(framework.Unschedulable, ErrReasonMaxVolumeCountExceeded)
+				return framework.NewStatus(framework.Unschedulable, framework.NewFailure(pl.Name(), ErrReasonMaxVolumeCountExceeded))
 			}
 		}
 	}

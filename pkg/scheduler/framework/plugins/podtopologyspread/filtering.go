@@ -146,7 +146,7 @@ func (s *preFilterState) updateWithPod(updatedPod, preemptorPod *v1.Pod, node *v
 func (pl *PodTopologySpread) PreFilter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod) *framework.Status {
 	s, err := pl.calPreFilterState(pod)
 	if err != nil {
-		return framework.AsStatus(err)
+		return framework.AsStatus(Name, err)
 	}
 	cycleState.Write(preFilterStateKey, s)
 	return nil
@@ -161,7 +161,7 @@ func (pl *PodTopologySpread) PreFilterExtensions() framework.PreFilterExtensions
 func (pl *PodTopologySpread) AddPod(ctx context.Context, cycleState *framework.CycleState, podToSchedule *v1.Pod, podToAdd *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 	s, err := getPreFilterState(cycleState)
 	if err != nil {
-		return framework.AsStatus(err)
+		return framework.AsStatus(Name, err)
 	}
 
 	s.updateWithPod(podToAdd, podToSchedule, nodeInfo.Node(), 1)
@@ -172,7 +172,7 @@ func (pl *PodTopologySpread) AddPod(ctx context.Context, cycleState *framework.C
 func (pl *PodTopologySpread) RemovePod(ctx context.Context, cycleState *framework.CycleState, podToSchedule *v1.Pod, podToRemove *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 	s, err := getPreFilterState(cycleState)
 	if err != nil {
-		return framework.AsStatus(err)
+		return framework.AsStatus(Name, err)
 	}
 
 	s.updateWithPod(podToRemove, podToSchedule, nodeInfo.Node(), -1)
@@ -276,12 +276,12 @@ func (pl *PodTopologySpread) calPreFilterState(pod *v1.Pod) (*preFilterState, er
 func (pl *PodTopologySpread) Filter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 	node := nodeInfo.Node()
 	if node == nil {
-		return framework.AsStatus(fmt.Errorf("node not found"))
+		return framework.AsStatus(Name, fmt.Errorf("node not found"))
 	}
 
 	s, err := getPreFilterState(cycleState)
 	if err != nil {
-		return framework.AsStatus(err)
+		return framework.AsStatus(Name, err)
 	}
 
 	// However, "empty" preFilterState is legit which tolerates every toSchedule Pod.
@@ -295,7 +295,7 @@ func (pl *PodTopologySpread) Filter(ctx context.Context, cycleState *framework.C
 		tpVal, ok := node.Labels[c.TopologyKey]
 		if !ok {
 			klog.V(5).Infof("node '%s' doesn't have required label '%s'", node.Name, tpKey)
-			return framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonNodeLabelNotMatch)
+			return framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonNodeLabelNotMatch))
 		}
 
 		selfMatchNum := int32(0)
@@ -320,7 +320,7 @@ func (pl *PodTopologySpread) Filter(ctx context.Context, cycleState *framework.C
 		skew := matchNum + selfMatchNum - minMatchNum
 		if skew > c.MaxSkew {
 			klog.V(5).Infof("node '%s' failed spreadConstraint[%s]: MatchNum(%d) + selfMatchNum(%d) - minMatchNum(%d) > maxSkew(%d)", node.Name, tpKey, matchNum, selfMatchNum, minMatchNum, c.MaxSkew)
-			return framework.NewStatus(framework.Unschedulable, ErrReasonConstraintsNotMatch)
+			return framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReasonConstraintsNotMatch))
 		}
 	}
 

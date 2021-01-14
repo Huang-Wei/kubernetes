@@ -69,7 +69,7 @@ const (
 	BackoffGCInterval = 1 * time.Minute
 )
 
-// Reasons for DaemonSet events
+// Failures for DaemonSet events
 const (
 	// SelectingAllReason is added to an event when a DaemonSet selects all Pods.
 	SelectingAllReason = "SelectingAll"

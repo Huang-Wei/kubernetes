@@ -53,7 +53,7 @@ func (s *stateData) Clone() framework.StateData {
 // Reserve is the function invoked by the framework at "reserve" extension point.
 func (mc CommunicatingPlugin) Reserve(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) *framework.Status {
 	if pod == nil {
-		return framework.NewStatus(framework.Error, "pod cannot be nil")
+		return framework.NewStatus(framework.Error, framework.NewFailure(mc.Name(), "pod cannot be nil"))
 	}
 	if pod.Name == "my-test-pod" {
 		state.Lock()
@@ -79,13 +79,13 @@ func (mc CommunicatingPlugin) Unreserve(ctx context.Context, state *framework.Cy
 // PreBind is the function invoked by the framework at "prebind" extension point.
 func (mc CommunicatingPlugin) PreBind(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) *framework.Status {
 	if pod == nil {
-		return framework.NewStatus(framework.Error, "pod cannot be nil")
+		return framework.NewStatus(framework.Error, framework.NewFailure(mc.Name(), "pod cannot be nil"))
 	}
 	state.RLock()
 	defer state.RUnlock()
 	if v, e := state.Read(framework.StateKey(pod.Name)); e == nil {
 		if value, ok := v.(*stateData); ok && value.data == "never bind" {
-			return framework.NewStatus(framework.Unschedulable, "pod is not permitted")
+			return framework.NewStatus(framework.Unschedulable, framework.NewFailure(mc.Name(), "pod is not permitted"))
 		}
 	}
 	return nil

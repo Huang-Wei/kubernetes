@@ -101,12 +101,12 @@ func getPreFilterState(cycleState *framework.CycleState) (preFilterState, error)
 func (pl *NodePorts) Filter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 	wantPorts, err := getPreFilterState(cycleState)
 	if err != nil {
-		return framework.AsStatus(err)
+		return framework.AsStatus(Name, err)
 	}
 
 	fits := fitsPorts(wantPorts, nodeInfo)
 	if !fits {
-		return framework.NewStatus(framework.Unschedulable, ErrReason)
+		return framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReason))
 	}
 
 	return nil

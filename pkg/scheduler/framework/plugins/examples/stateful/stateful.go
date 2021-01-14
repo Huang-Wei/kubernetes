@@ -76,7 +76,7 @@ func (mp *MultipointExample) PreBind(ctx context.Context, state *framework.Cycle
 	defer mp.mu.Unlock()
 	mp.executionPoints = append(mp.executionPoints, "pre-bind")
 	if pod == nil {
-		return framework.NewStatus(framework.Error, "pod must not be nil")
+		return framework.NewStatus(framework.Error, framework.NewFailure(mp.Name(), "pod must not be nil"))
 	}
 	return nil
 }

@@ -17,6 +17,8 @@ limitations under the License.
 package noderesources
 
 import (
+	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/klog/v2"
@@ -47,10 +49,10 @@ func (r *resourceAllocationScorer) score(
 	nodeInfo *framework.NodeInfo) (int64, *framework.Status) {
 	node := nodeInfo.Node()
 	if node == nil {
-		return 0, framework.NewStatus(framework.Error, "node not found")
+		return 0, framework.AsStatus(r.Name, fmt.Errorf("node not found"))
 	}
 	if r.resourceToWeightMap == nil {
-		return 0, framework.NewStatus(framework.Error, "resources not found")
+		return 0, framework.AsStatus(r.Name, fmt.Errorf("resources not found"))
 	}
 	requested := make(resourceToValueMap, len(r.resourceToWeightMap))
 	allocatable := make(resourceToValueMap, len(r.resourceToWeightMap))

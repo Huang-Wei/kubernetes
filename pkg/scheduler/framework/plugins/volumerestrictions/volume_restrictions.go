@@ -122,7 +122,7 @@ func (pl *VolumeRestrictions) Filter(ctx context.Context, _ *framework.CycleStat
 
 		for _, ev := range nodeInfo.Pods {
 			if isVolumeConflict(v, ev.Pod) {
-				return framework.NewStatus(framework.Unschedulable, ErrReasonDiskConflict)
+				return framework.NewStatus(framework.Unschedulable, framework.NewFailure(Name, ErrReasonDiskConflict))
 			}
 		}
 	}

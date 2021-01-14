@@ -204,7 +204,7 @@ func (pl *nonCSILimits) Filter(ctx context.Context, _ *framework.CycleState, pod
 
 	newVolumes := make(map[string]bool)
 	if err := pl.filterVolumes(pod.Spec.Volumes, pod.Namespace, newVolumes); err != nil {
-		return framework.NewStatus(framework.Error, err.Error())
+		return framework.AsStatus(pl.Name(), err)
 	}
 
 	// quick return
@@ -214,7 +214,7 @@ func (pl *nonCSILimits) Filter(ctx context.Context, _ *framework.CycleState, pod
 
 	node := nodeInfo.Node()
 	if node == nil {
-		return framework.NewStatus(framework.Error, fmt.Sprintf("node not found"))
+		return framework.AsStatus(pl.Name(), fmt.Errorf("node not found"))
 	}
 
 	var csiNode *storage.CSINode
@@ -237,7 +237,7 @@ func (pl *nonCSILimits) Filter(ctx context.Context, _ *framework.CycleState, pod
 	existingVolumes := make(map[string]bool)
 	for _, existingPod := range nodeInfo.Pods {
 		if err := pl.filterVolumes(existingPod.Pod.Spec.Volumes, existingPod.Pod.Namespace, existingVolumes); err != nil {
-			return framework.NewStatus(framework.Error, err.Error())
+			return framework.AsStatus(pl.Name(), err)
 		}
 	}
 	numExistingVolumes := len(existingVolumes)
@@ -255,7 +255,7 @@ func (pl *nonCSILimits) Filter(ctx context.Context, _ *framework.CycleState, pod
 	}
 
 	if numExistingVolumes+numNewVolumes > maxAttachLimit {
-		return framework.NewStatus(framework.Unschedulable, ErrReasonMaxVolumeCountExceeded)
+		return framework.NewStatus(framework.Unschedulable, framework.NewFailure(pl.Name(), ErrReasonMaxVolumeCountExceeded))
 	}
 	if nodeInfo != nil && nodeInfo.TransientInfo != nil && utilfeature.DefaultFeatureGate.Enabled(features.BalanceAttachedNodeVolumes) {
 		nodeInfo.TransientInfo.TransientLock.Lock()

@@ -195,18 +195,18 @@ func getPreFilterState(cycleState *framework.CycleState) (*preFilterState, error
 func (f *Fit) Filter(ctx context.Context, cycleState *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
 	s, err := getPreFilterState(cycleState)
 	if err != nil {
-		return framework.NewStatus(framework.Error, err.Error())
+		return framework.AsStatus(FitName, err)
 	}
 
 	insufficientResources := fitsRequest(s, nodeInfo, f.ignoredResources, f.ignoredResourceGroups)
 
 	if len(insufficientResources) != 0 {
 		// We will keep all failure reasons.
-		failureReasons := make([]string, 0, len(insufficientResources))
+		failures := make([]framework.Failure, 0, len(insufficientResources))
 		for _, r := range insufficientResources {
-			failureReasons = append(failureReasons, r.Reason)
+			failures = append(failures, framework.NewFailure(FitName, r.Reason))
 		}
-		return framework.NewStatus(framework.Unschedulable, failureReasons...)
+		return framework.NewStatus(framework.Unschedulable, failures...)
 	}
 	return nil
 }

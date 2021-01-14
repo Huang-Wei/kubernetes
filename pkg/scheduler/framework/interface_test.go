@@ -22,6 +22,8 @@ import (
 )
 
 func TestStatus(t *testing.T) {
+	e := NewStatus(Error)
+	e.SetError(errors.New("unknown error"))
 	tests := []struct {
 		status            *Status
 		expectedCode      Code
@@ -30,14 +32,14 @@ func TestStatus(t *testing.T) {
 		expectedAsError   error
 	}{
 		{
-			status:            NewStatus(Success, ""),
+			status:            NewStatus(Success),
 			expectedCode:      Success,
 			expectedMessage:   "",
 			expectedIsSuccess: true,
 			expectedAsError:   nil,
 		},
 		{
-			status:            NewStatus(Error, "unknown error"),
+			status:            e,
 			expectedCode:      Error,
 			expectedMessage:   "unknown error",
 			expectedIsSuccess: false,

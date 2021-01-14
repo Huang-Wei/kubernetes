@@ -28,7 +28,7 @@ const (
 
 // StateData is a generic type for arbitrary data stored in CycleState.
 type StateData interface {
-	// Clone is an interface to make a copy of StateData. For performance reasons,
+	// Clone is an interface to make a copy of StateData. For performance failures,
 	// clone should make shallow copies for members (e.g., slices or maps) that are not
 	// impacted by PreFilter's optional AddPod/RemovePod methods.
 	Clone() StateData

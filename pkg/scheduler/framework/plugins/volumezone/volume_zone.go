@@ -85,7 +85,7 @@ func (pl *VolumeZone) Filter(ctx context.Context, _ *framework.CycleState, pod *
 	}
 	node := nodeInfo.Node()
 	if node == nil {
-		return framework.NewStatus(framework.Error, "node not found")
+		return framework.NewStatus(framework.Error, framework.NewFailure(Name, "node not found"))
 	}
 	nodeConstraints := make(map[string]string)
 	for k, v := range node.ObjectMeta.Labels {
@@ -108,47 +108,47 @@ func (pl *VolumeZone) Filter(ctx context.Context, _ *framework.CycleState, pod *
 		}
 		pvcName := volume.PersistentVolumeClaim.ClaimName
 		if pvcName == "" {
-			return framework.NewStatus(framework.Error, "PersistentVolumeClaim had no name")
+			return framework.NewStatus(framework.Error, framework.NewFailure(Name, "PersistentVolumeClaim had no name"))
 		}
 		pvc, err := pl.pvcLister.PersistentVolumeClaims(pod.Namespace).Get(pvcName)
 		if err != nil {
-			return framework.NewStatus(framework.Error, err.Error())
+			return framework.AsStatus(Name, err)
 		}
 
 		if pvc == nil {
-			return framework.NewStatus(framework.Error, fmt.Sprintf("PersistentVolumeClaim was not found: %q", pvcName))
+			return framework.NewStatus(framework.Error, framework.NewFailure(Name, fmt.Sprintf("PersistentVolumeClaim was not found: %q", pvcName)))
 		}
 
 		pvName := pvc.Spec.VolumeName
 		if pvName == "" {
 			scName := v1helper.GetPersistentVolumeClaimClass(pvc)
 			if len(scName) == 0 {
-				return framework.NewStatus(framework.Error, fmt.Sprint("PersistentVolumeClaim had no pv name and storageClass name"))
+				return framework.NewStatus(framework.Error, framework.NewFailure(Name, fmt.Sprint("PersistentVolumeClaim had no pv name and storageClass name")))
 			}
 
 			class, _ := pl.scLister.Get(scName)
 			if class == nil {
-				return framework.NewStatus(framework.Error, fmt.Sprintf("StorageClass %q claimed by PersistentVolumeClaim %q not found", scName, pvcName))
+				return framework.NewStatus(framework.Error, framework.NewFailure(Name, fmt.Sprintf("StorageClass %q claimed by PersistentVolumeClaim %q not found", scName, pvcName)))
 
 			}
 			if class.VolumeBindingMode == nil {
-				return framework.NewStatus(framework.Error, fmt.Sprintf("VolumeBindingMode not set for StorageClass %q", scName))
+				return framework.NewStatus(framework.Error, framework.NewFailure(Name, fmt.Sprintf("VolumeBindingMode not set for StorageClass %q", scName)))
 			}
 			if *class.VolumeBindingMode == storage.VolumeBindingWaitForFirstConsumer {
 				// Skip unbound volumes
 				continue
 			}
 
-			return framework.NewStatus(framework.Error, fmt.Sprint("PersistentVolume had no name"))
+			return framework.NewStatus(framework.Error, framework.NewFailure(Name, fmt.Sprint("PersistentVolume had no name")))
 		}
 
 		pv, err := pl.pvLister.Get(pvName)
 		if err != nil {
-			return framework.NewStatus(framework.Error, err.Error())
+			return framework.AsStatus(Name, err)
 		}
 
 		if pv == nil {
-			return framework.NewStatus(framework.Error, fmt.Sprintf("PersistentVolume was not found: %q", pvName))
+			return framework.NewStatus(framework.Error, framework.NewFailure(Name, fmt.Sprintf("PersistentVolume was not found: %q", pvName)))
 		}
 
 		for k, v := range pv.ObjectMeta.Labels {
@@ -164,7 +164,7 @@ func (pl *VolumeZone) Filter(ctx context.Context, _ *framework.CycleState, pod *
 
 			if !volumeVSet.Has(nodeV) {
 				klog.V(10).Infof("Won't schedule pod %q onto node %q due to volume %q (mismatch on %q)", pod.Name, node.Name, pvName, k)
-				return framework.NewStatus(framework.UnschedulableAndUnresolvable, ErrReasonConflict)
+				return framework.NewStatus(framework.UnschedulableAndUnresolvable, framework.NewFailure(Name, ErrReasonConflict))
 			}
 		}
 	}
