@@ -157,7 +157,7 @@ type metricsCollectorConfig struct {
 }
 
 // metricsCollector collects metrics from legacyregistry.DefaultGatherer.Gather() endpoint.
-// Currently only Histrogram metrics are supported.
+// Currently only Histogram metrics are supported.
 type metricsCollector struct {
 	*metricsCollectorConfig
 	labels map[string]string
@@ -177,7 +177,7 @@ func (*metricsCollector) run(ctx context.Context) {
 func (pc *metricsCollector) collect() []DataItem {
 	var dataItems []DataItem
 	for _, metric := range pc.Metrics {
-		dataItem := collectHistogram(metric, pc.labels)
+		dataItem := collectHistogramVec(metric, pc.labels)
 		if dataItem != nil {
 			dataItems = append(dataItems, *dataItem)
 		}
@@ -185,29 +185,26 @@ func (pc *metricsCollector) collect() []DataItem {
 	return dataItems
 }
 
-func collectHistogram(metric string, labels map[string]string) *DataItem {
-	hist, err := testutil.GetHistogramFromGatherer(legacyregistry.DefaultGatherer, metric)
+func collectHistogramVec(metric string, labels map[string]string) *DataItem {
+	vec, err := testutil.GetHistogramVecFromGatherer(legacyregistry.DefaultGatherer, metric, nil)
 	if err != nil {
 		klog.Error(err)
 		return nil
 	}
-	if hist.Histogram == nil {
-		klog.Errorf("metric %q is not a Histogram metric", metric)
-		return nil
-	}
-	if err := hist.Validate(); err != nil {
+
+	if err := vec.Validate(); err != nil {
 		klog.Error(err)
 		return nil
 	}
 
-	q50 := hist.Quantile(0.50)
-	q90 := hist.Quantile(0.90)
-	q99 := hist.Quantile(0.95)
-	avg := hist.Average()
+	q50 := vec.Quantile(0.50)
+	q90 := vec.Quantile(0.90)
+	q99 := vec.Quantile(0.95)
+	avg := vec.Average()
 
 	// clear the metrics so that next test always starts with empty prometheus
 	// metrics (since the metrics are shared among all tests run inside the same binary)
-	hist.Clear()
+	vec.Clear()
 
 	msFactor := float64(time.Second) / float64(time.Millisecond)
 
