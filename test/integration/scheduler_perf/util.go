@@ -202,10 +202,6 @@ func collectHistogramVec(metric string, labels map[string]string) *DataItem {
 	q99 := vec.Quantile(0.95)
 	avg := vec.Average()
 
-	// clear the metrics so that next test always starts with empty prometheus
-	// metrics (since the metrics are shared among all tests run inside the same binary)
-	vec.Clear()
-
 	msFactor := float64(time.Second) / float64(time.Millisecond)
 
 	// Copy labels and add "Metric" label for this metric.

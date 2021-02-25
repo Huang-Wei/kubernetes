@@ -233,13 +233,6 @@ func (vec HistogramVec) Average() float64 {
 	return vec.GetSampleSum() / float64(vec.GetSampleCount())
 }
 
-// Clear clears all fields of the wrapped histograms.
-func (vec HistogramVec) Clear() {
-	for _, hist := range vec {
-		hist.Clear()
-	}
-}
-
 // Validate makes sure the wrapped histograms have all necessary fields set and with valid values.
 func (vec HistogramVec) Validate() error {
 	bucketSize := 0
@@ -363,21 +356,6 @@ func (hist *Histogram) Quantile(q float64) float64 {
 // Average computes histogram's average value
 func (hist *Histogram) Average() float64 {
 	return hist.GetSampleSum() / float64(hist.GetSampleCount())
-}
-
-// Clear clears all fields of the wrapped histogram
-func (hist *Histogram) Clear() {
-	if hist.SampleCount != nil {
-		*hist.SampleCount = 0
-	}
-	if hist.SampleSum != nil {
-		*hist.SampleSum = 0
-	}
-	for _, b := range hist.Bucket {
-		if b.CumulativeCount != nil {
-			*b.CumulativeCount = 0
-		}
-	}
 }
 
 // Validate makes sure the wrapped histogram has all necessary fields set and with valid values.
