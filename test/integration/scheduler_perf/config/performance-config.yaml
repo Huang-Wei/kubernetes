@@ -475,3 +475,27 @@
     params:
       initNodes: 5000
       measurePods: 2000
+
+- name: SchedulingWithServiceChurn
+  workloadTemplate:
+  - opcode: createNodes
+    countParam: $initNodes
+  - opcode: churn
+    mode: recreate
+    number: 1
+    templatePaths:
+    - config/churn/service-default.yaml
+    intervalMilliseconds: 1000
+  - opcode: createPods
+    countParam: $measurePods
+    podTemplatePath: config/pod-default.yaml
+    collectMetrics: true
+  workloads:
+  - name: 1000Nodes
+    params:
+      initNodes: 1000
+      measurePods: 1000
+  - name: 5000Nodes
+    params:
+      initNodes: 5000
+      measurePods: 2000
