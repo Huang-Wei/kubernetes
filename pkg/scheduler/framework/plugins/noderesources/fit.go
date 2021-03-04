@@ -189,6 +189,15 @@ func getPreFilterState(cycleState *framework.CycleState) (*preFilterState, error
 	return s, nil
 }
 
+// EventsToRegister returns the possible events that can make a Pod
+// failed by current plugin schedulable.
+func (f *Fit) EventsToRegister() []framework.ClusterEvent {
+	return []framework.ClusterEvent{
+		{Resource: framework.Pod, ActionType: framework.Update | framework.Delete},
+		{Resource: framework.Node, ActionType: framework.Add | framework.UpdateNodeAllocatable},
+	}
+}
+
 // Filter invoked at the filter extension point.
 // Checks if a node has sufficient resources, such as cpu, memory, gpu, opaque int resources etc to run a pod.
 // It returns a list of insufficient resources, if empty, then the node has all the resources requested by the pod.
